@@ -213,11 +213,13 @@ func getSystemResource(service *gofish.Service, sysid string) (*redfish.Computer
 	return nil, errors.New("no computer system found with given system id")
 }
 
-// NewConfig function creates the needed gofish structs to query the redfish API
-// See https://github.com/stmcginnis/gofish for details. This function returns a Service struct which can then be
-// used to make any required API calls.
-// To-Do: Verify from plan modifier, if required implement wrapper for validation of unknown in redfish_server.
-func NewConfig(pconfig *redfishProvider, rserver *[]models.RedfishServer) (*gofish.APIClient, error) {
+// serverCreds is a redfish_server block resolved against the provider's aliases and defaults.
+type serverCreds struct {
+	endpoint, user, password string
+	insecure                 bool
+}
+
+func resolveServer(pconfig *redfishProvider, rserver *[]models.RedfishServer) (*serverCreds, error) {
 	if len(*rserver) == 0 {
 		return nil, fmt.Errorf("no provider block was found")
 	}
@@ -245,16 +247,28 @@ func NewConfig(pconfig *redfishProvider, rserver *[]models.RedfishServer) (*gofi
 		return nil, fmt.Errorf("error. Either provide password at provider level or resource level. Please check your configuration")
 	}
 
-	if len(redfishClientUser) == 0 || len(redfishClientPass) == 0 {
-		return nil, fmt.Errorf("error. Either Redfish client username or password has not been set. Please check your configuration")
-	}
+	return &serverCreds{
+		endpoint: rserver1.Endpoint.ValueString(),
+		user:     redfishClientUser,
+		password: redfishClientPass,
+		insecure: rserver1.SslInsecure.ValueBool(),
+	}, nil
+}
 
+// NewConfig function creates the needed gofish structs to query the redfish API
+// See https://github.com/stmcginnis/gofish for details. This function returns a Service struct which can then be
+// used to make any required API calls.
+func NewConfig(pconfig *redfishProvider, rserver *[]models.RedfishServer) (*gofish.APIClient, error) {
+	c, err := resolveServer(pconfig, rserver)
+	if err != nil {
+		return nil, err
+	}
 	clientConfig := gofish.ClientConfig{
-		Endpoint:   rserver1.Endpoint.ValueString(),
-		Username:   redfishClientUser,
-		Password:   redfishClientPass,
-		Insecure:   rserver1.SslInsecure.ValueBool(),
-		HTTPClient: pconfig.GetHTTPClientWithTLS(rserver1.SslInsecure.ValueBool()), // Use retry-enabled HTTP client with TLS config
+		Endpoint:   c.endpoint,
+		Username:   c.user,
+		Password:   c.password,
+		Insecure:   c.insecure,
+		HTTPClient: pconfig.GetHTTPClientWithTLS(c.insecure), // Use retry-enabled HTTP client with TLS config
 	}
 
 	api, err := gofish.Connect(clientConfig)
@@ -407,4 +421,3 @@ func (s *ServerStatusChecker) Check(ctx context.Context) error {
 
 	return err
 }
-

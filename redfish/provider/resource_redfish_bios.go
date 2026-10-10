@@ -158,6 +158,7 @@ func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				Optional:            true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplaceIfConfigured(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 		},

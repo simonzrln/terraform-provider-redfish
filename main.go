@@ -45,7 +45,7 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), provider.New, providerserver.ServeOpts{
-		Address: "registry.terraform.io/dell/redfish",
+		Address: "registry.terraform.io/simonzrln/redfish",
 		Debug:   debug,
 	})
 	if err != nil {
@@ -64,12 +64,12 @@ func main() {
 
 // 	opts := &plugin.ServeOpts{
 // 		Debug:        debugMode,
-// 		ProviderAddr: "registry.terraform.io/dell/redfish",
+// 		ProviderAddr: "registry.terraform.io/simonzrln/redfish",
 // 		ProviderFunc: redfish.Provider,
 // 	}
 
 // 	if debugMode {
-// 		err := plugin.Debug(context.Background(), "registry.terraform.io/dell/redfish", opts)
+// 		err := plugin.Debug(context.Background(), "registry.terraform.io/simonzrln/redfish", opts)
 // 		if err != nil {
 // 			log.Fatal(err.Error())
 // 		}

@@ -180,6 +180,13 @@ func (*redfishProvider) Resources(_ context.Context) []func() resource.Resource 
 	return []func() resource.Resource{
 		NewPowerResource,
 		NewBiosResource,
+		NewAccountResource,
+		NewManagerNetworkProtocolResource,
+		NewAMIFanModeResource,
+		NewAMIFanCurveResource,
+		NewAMIFanAssignmentResource,
+		NewAMISensorThresholdResource,
+		NewAMIServiceResource,
 		NewManagerResetResource,
 		NewBootOrderResource,
 		NewBootSourceOverrideResource,

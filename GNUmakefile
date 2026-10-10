@@ -5,7 +5,7 @@ INSTALL_ROOT?=~/.terraform.d/plugins
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 WEBSITE_REPO=github.com/hashicorp/terraform-website
 HOSTNAME=registry.terraform.io
-NAMESPACE=dell
+NAMESPACE=simonzrln
 BINARY=terraform-provider-${PKG_NAME}
 OS_ARCH=linux_amd64
 

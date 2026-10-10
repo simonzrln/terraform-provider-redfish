@@ -1,154 +1,123 @@
-<!--
-Copyright (c) 2020-2026 Dell Inc., or its subsidiaries. All Rights Reserved.
+# Terraform Provider Redfish for AMI MegaRAC BMCs
 
-Licensed under the Mozilla Public License Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+A slim fork of [dell/terraform-provider-redfish](https://github.com/dell/terraform-provider-redfish)
+(v1.6.2) for servers whose BMC runs **AMI MegaRAC** firmware, such as ASRock Rack
+boards with an AST2600. Developed and tested against an ASRock Rack **B650D4U**
+(BMC firmware 6.09, BIOS 22.10).
 
-    http://mozilla.org/MPL/2.0/
+The Dell provider reads these BMCs fine but cannot write to them: every write first
+asks for the iDRAC server generation, and BIOS changes go to a hardcoded
+`/Bios/Settings` URI. This fork removes the iDRAC dependencies, keeps the standard
+Redfish resources, and adds resources for what AMI exposes only through the private
+REST API behind its web UI: fan modes, fan curves, fan assignments, sensor
+thresholds and services.
 
+## Resources
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-# Terraform Provider for RedFish
+| Resource | API | Manages |
+|---|---|---|
+| `redfish_bios` | Redfish | BIOS attributes via the settings object the BMC advertises (`/Bios/SD` on AMI). Diffs against pending values; `pending_reboot` shows whether a reboot is still due. **Never reboots unless `reset_type` is set.** |
+| `redfish_account` | Redfish | `enabled` and `role_id` of an existing account, matched by user name. Never creates or deletes accounts, never touches passwords. |
+| `redfish_manager_network_protocol` | Redfish | IPMI, SSH, SNMP, NTP (and its servers), KVM-IP, virtual media on/off. HTTPS is left out on purpose. |
+| `redfish_ami_fan_mode` | AMI web API | Mode per fan header (`default`, `customized`, `manual`), manual duty, full speed on fan failure. |
+| `redfish_ami_fan_curve` | AMI web API | One open-loop table: temperature to duty steps, hysteresis, ramps. |
+| `redfish_ami_fan_assignment` | AMI web API | Which temperature sensor drives which table for which fans. |
+| `redfish_ami_sensor_threshold` | AMI web API | Thresholds of one IPMI sensor, e.g. the lower non-critical RPM of a fan. |
+| `redfish_ami_service` | AMI web API | Enable or disable kvm, cd-media, hd-media, ssh, solssh, vnc. `web` is refused (changing it ends the session). |
+| `redfish_boot_order`, `redfish_boot_source_override`, `redfish_power`, `redfish_manager_reset` | Redfish | Unchanged from upstream apart from dropping the iDRAC generation check. |
 
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](about/CODE_OF_CONDUCT.md)
-[![License](https://img.shields.io/badge/License-MPL_2.0-blue.svg)](LICENSE)
+Data sources: `redfish_bios`, `redfish_system_boot`.
 
-The Terraform Provider for RedFish allows data center and IT administrators to use Hashicorp Terraform to automate and orchestrate the provisioning and management of PowerEdge servers.
+Conventions that differ from upstream:
 
-The Terraform Provider can be used to manage server power cycles, IDRAC attributes, BIOS attributes, virtual media, storage volumes, user support, and firmware updates on the server.
+* Settings always exist on the BMC, so **destroy only removes a resource from state**; it
+  never resets the hardware.
+* Only configured attributes are managed. Unset optional attributes are read but
+  never written.
+* After every write the provider reads the value back and **fails if the BMC did not
+  store it**. AMI firmware often acknowledges a write it silently ignores, for example
+  fan thresholds that snap to 400-RPM steps.
+* A BMC cold start (AC loss) resets fan modes and thresholds. Run `terraform plan`
+  regularly to catch it.
 
-## Table of contents
+## Example
 
-* [Code of Conduct](https://github.com/dell/dell-terraform-providers/blob/main/docs/CODE_OF_CONDUCT.md)
-* [Maintainer Guide](https://github.com/dell/dell-terraform-providers/blob/main/docs/MAINTAINER_GUIDE.md)
-* [Committer Guide](https://github.com/dell/dell-terraform-providers/blob/main/docs/COMMITTER_GUIDE.md)
-* [Contributing Guide](https://github.com/dell/dell-terraform-providers/blob/main/docs/CONTRIBUTING.md)
-* [List of Adopters](https://github.com/dell/dell-terraform-providers/blob/main/docs/ADOPTERS.md)
-* [Support](#support)
-* [Security](https://github.com/dell/dell-terraform-providers/blob/main/docs/SECURITY.md)
-* [License](#license)
-* [Prerequisites](#prerequisites)
-* [List of DataSources in Terraform Provider for RedFish](#list-of-datasources-in-terraform-provider-for-redfish)
-* [List of Resources in Terraform Provider for RedFish](#list-of-resources-in-terraform-provider-for-redfish)
-* [Releasing, Maintenance and Deprecation](#releasing-maintenance-and-deprecation)
-* [Documentation](#documentation)
+```hcl
+terraform {
+  required_providers {
+    redfish = { source = "simonzrln/redfish" }
+  }
+}
 
-## Support
-For any Terraform Provider for RedFish issues, questions or feedback, please follow our [support process](https://github.com/dell/dell-terraform-providers/blob/main/docs/SUPPORT.md)
+provider "redfish" {
+  redfish_servers = {
+    bmc = { user = "admin", password = var.bmc_password, endpoint = "https://192.168.1.99", ssl_insecure = true }
+  }
+}
+
+resource "redfish_bios" "board" {
+  redfish_server { redfish_alias = "bmc" }
+  attributes = {
+    CbsCpuSvmEnableRPL  = "CbsCpuSvmEnableRPLEnabled"
+    CbsCmnGnbNbIOMMURPL = "CbsCmnGnbNbIOMMURPLEnabled"
+  }
+}
+
+resource "redfish_ami_fan_mode" "fans" {
+  redfish_server { redfish_alias = "bmc" }
+  fans = {
+    "1" = { mode = "customized" }
+    "3" = { mode = "manual", duty = 60 }
+  }
+}
+
+resource "redfish_ami_fan_curve" "cpu" {
+  redfish_server { redfish_alias = "bmc" }
+  table  = 1
+  points = [{ temp = 30, duty = 50 }, { temp = 60, duty = 55 }, { temp = 80, duty = 75 }, { temp = 95, duty = 100 }]
+}
+
+resource "redfish_ami_fan_assignment" "cpu" {
+  redfish_server { redfish_alias = "bmc" }
+  slot        = 1
+  temp_sensor = "TEMP_CPU"
+  table       = 1
+  fans        = [1, 7]
+}
+
+resource "redfish_ami_sensor_threshold" "fan3" {
+  redfish_server { redfish_alias = "bmc" }
+  sensor             = "FAN3_1"
+  lower_non_critical = "0"
+}
+
+resource "redfish_manager_network_protocol" "bmc" {
+  redfish_server { redfish_alias = "bmc" }
+  snmp_enabled = false
+}
+
+resource "redfish_account" "monitor" {
+  redfish_server { redfish_alias = "bmc" }
+  username = "monitor"
+  enabled  = false
+}
+```
+
+BIOS attribute names and values are the raw Redfish names (`CbsCpuSvmEnableRPL`),
+not the setup-menu labels. Map them with the attribute registry linked from
+`/redfish/v1/Registries`.
+
+## Building
+
+There is no registry release. Build the binary and point Terraform at it with a
+filesystem mirror or `dev_overrides`:
+
+```sh
+go build -o terraform-provider-redfish .        # or scripts/docker-go.sh build ...
+go test ./redfish/...                            # unit tests incl. a fake AMI BMC
+```
 
 ## License
-The Terraform Provider for RedFish is released and licensed under the MPL-2.0 license. See [LICENSE](https://github.com/dell/dell-terraform-providers/blob/main/LICENSE) for the full terms.
 
-## Prerequisites
-
-| **Terraform Provider** | **iDRAC9 Firmware Version** | **iDRAC10 Firmware Version** | **OS** | **Terraform** | **Golang**|
-|---------------------|-----------------------|-----------------------|-------|--------------------|--------------------------|
-| v1.6.2 | 6.x <br> 7.x | 1.20.25.x | ubuntu22.04 <br> rhel9.x | 1.14.x <br> 1.15.x | 1.26 |
-
-## List of DataSources in Terraform Provider for RedFish
-
-### System Configuration and Management
- 
- * [Bios](../product_guide/data-sources/bios)
- * [System Boot](../product_guide/data-sources/system_boot)
-
-### Authentication and Security
-
-  * [Directory Service Auth Provider](../product_guide/data-sources/directory_service_auth_provider)
-  * [Directory Service Auth Provide Certificate](../product_guide/data-sources/directory_service_auth_provider_certificate)
-
-### Firmware and Inventory
-
-  * [Firmware Inventory](../product_guide/data-sources/firmware_inventory)
-
-### Dell iDRAC Management
-
-  * [iDRAC Attributes](../product_guide/data-sources/dell_idrac_attributes)
-
-### Networking
-
-  * [Server NIC](../product_guide/data-sources/network)
-
-### Storage Management
-
-  * [Storage](../product_guide/data-sources/storage)
-  * [Storage Controller](../product_guide/data-sources/storage_controller)
-
-### Virtual Media
-
-  * [Virtual Media](../product_guide/data-sources/virtual_media)
-
- 
-## List of Resources in Terraform Provider for RedFish
-
-### System Configuration and Management
-
-  * [Bios](../product_guide/resources/bios)
-  * [Boot Order](../product_guide/resources/boot_order)
-  * [Boot Source Override](../product_guide/resources/boot_source_override)
-  * [System Attributes](../product_guide/resources/dell_system_attributes)
-
-### Authentication and Security
-
-  * [Certificate](../product_guide/resources/certificate)
-  * [Directory Service Auth Provider](../product_guide/resources/directory_service_auth_provider)
-  * [Directory Service Auth Provider Certificate](../product_guide/resources/directory_service_auth_provider_certificate)
-  * [User Account](../product_guide/resources/user_account)
-  * [User Account Password](../product_guide/resources/user_account_password)
-
-### Firmware and Updates
-
-  * [Simple Update](../product_guide/resources/simple_update)
-  * [iDRAC Firmware Update](../product_guide/resources/idrac_firmware_update)
-
-### Dell iDRAC and Lifecycle Controller (LC) Management
-
-  * [iDRAC Attributes](../product_guide/resources/dell_idrac_attributes)
-  * [Lifecycle Controller Attributes](../product_guide/resources/dell_lc_attributes)
-  * [Server Configuration Profile Export](../product_guide/resources/idrac_server_configuration_profile_export)
-  * [Server Configuration Profile Import](../product_guide/resources/idrac_server_configuration_profile_import)
-
-### Power and Reset Management:
-
-  * [Power](../product_guide/resources/power)
-  * [Manager reset](../product_guide/resources/manager_reset)
-
-### Networking
-
-  * [Server NIC](../product_guide/resources/network_adapter)
-
-### Storage Management
-
-  * [Storage Controller](../product_guide/resources/storage_controller)
-  * [Storage Volume](../product_guide/resources/storage_volume)
-
-### Virtual Media
-
-  * [Virtual Media](../product_guide/resources/virtual_media)
-  
-## Installation and execution of Terraform Provider for RedFish
-The installation and execution steps of Terraform Provider for Dell RedFish can be found [here](https://github.com/dell/terraform-provider-redfish/blob/main/about/INSTALLATION.md).
-
-## Releasing, Maintenance and Deprecation
-
-Terraform Provider for RedFish follows [Semantic Versioning](https://semver.org/).
-
-New versions will be release regularly if significant changes (bug fix or new feature) are made in the provider.
-
-Released code versions are located on tags in the form of "vx.y.z" where x.y.z corresponds to the version number.
-
-## Documentation
-
-For more detailed information, please refer to [Dell Terraform Providers Documentation](https://dell.github.io/terraform-docs/).
-
-## Terraform Redfish Modules
-
-**Check the following links for the terraform-modules repository and registry**
-[Terraform Redfish Modules Github](https://github.com/dell/terraform-redfish-modules)
-[Terraform Redfish Modules Registry](https://registry.terraform.io/modules/dell/modules/redfish/latest)
+MPL-2.0, like the upstream provider. Upstream code is © Dell Inc.; changes in this
+fork are listed in the git history.
