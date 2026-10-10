@@ -15,7 +15,7 @@ import (
 	"strconv"
 )
 
-// Fan header modes as stored in /api/settings/fan/mode (fanN).
+// FanModes are the fan header modes as stored in /api/settings/fan/mode (fanN).
 var FanModes = map[string]int{"default": 0, "customized": 1, "manual": 2}
 
 // FanModeName is the inverse of FanModes.
@@ -27,6 +27,9 @@ func FanModeName(v int) string {
 	}
 	return strconv.Itoa(v)
 }
+
+// maxFanHeaders is the highest fan header number MaskFans reports.
+const maxFanHeaders = 16
 
 // unusedSlot marks an empty curve point or manual duty.
 const unusedSlot = 255
@@ -68,6 +71,8 @@ func Curve(row Object, entries int) []CurvePoint {
 // SetCurve validates pts like the web UI does and writes them into row, packed into
 // slots 1..n and padded with 255. Points must already be in ascending order, so the
 // configuration reads back exactly as written.
+//
+//revive:disable-next-line:argument-limit the four limits come straight from the table meta row.
 func SetCurve(row Object, pts []CurvePoint, entries, minTemp, maxTemp, minDuty, maxDuty int) error {
 	if len(pts) == 0 || len(pts) > entries {
 		return fmt.Errorf("a curve needs 1..%d points, got %d", entries, len(pts))
@@ -82,7 +87,8 @@ func SetCurve(row Object, pts []CurvePoint, entries, minTemp, maxTemp, minDuty, 
 		}
 		// The BMC requires both columns strictly increasing.
 		if p.Temp <= prev.Temp || p.Duty <= prev.Duty {
-			return fmt.Errorf("temperatures and duties must both be strictly increasing (%d°C/%d%% after %d°C/%d%%)", p.Temp, p.Duty, prev.Temp, prev.Duty)
+			return fmt.Errorf("temperatures and duties must both be strictly increasing (%d°C/%d%% after %d°C/%d%%)",
+				p.Temp, p.Duty, prev.Temp, prev.Duty)
 		}
 		prev = p
 	}
@@ -109,7 +115,7 @@ func FanMask(fans []int) int {
 // MaskFans is the inverse of FanMask.
 func MaskFans(mask int) []int {
 	var fans []int
-	for i := 0; i < 16; i++ {
+	for i := 0; i < maxFanHeaders; i++ {
 		if mask&(1<<i) != 0 {
 			fans = append(fans, i+1)
 		}

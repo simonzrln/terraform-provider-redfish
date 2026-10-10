@@ -17,9 +17,12 @@ linters:
         disabled: false
         arguments:
         - maxLitCount: '3'
-          allowStrs: '""'
+          # "id" is the schema attribute key every resource repeats.
+          allowStrs: '"","id"'
           allowInts: 0,1,2
           allowFloats: 0.0,0.,1.0,1.,2.0,2.
+          # Bases and bit sizes, e.g. FormatFloat(f, 'f', -1, 64).
+          ignoreFuncs: strconv\..*
       - name: argument-limit
         severity: warning
         disabled: false
@@ -113,9 +116,10 @@ linters:
         arguments:
         - checkPrivateReceivers
         - sayRepetitiveInsteadOfStutters
+      # syncX(..., write bool) is the read-or-write contract of the generic syncResource.
       - name: flag-parameter
         severity: warning
-        disabled: false
+        disabled: true
       - name: function-result-limit
         severity: warning
         disabled: false
@@ -156,9 +160,10 @@ linters:
       - name: modifies-value-receiver
         severity: warning
         disabled: false
+      # Anonymous nested structs are the idiomatic way to decode one-off JSON.
       - name: nested-structs
         severity: warning
-        disabled: false
+        disabled: true
       - name: optimize-operands-order
         severity: warning
         disabled: false
@@ -251,6 +256,10 @@ formatters:
   enable:
   - gofmt
   - gofumpt
+  settings:
+    gofumpt:
+      # The module path has no dot; without this gofumpt files local imports under stdlib.
+      module-path: terraform-provider-redfish
 output:
   sort-order:
   - file

@@ -20,6 +20,7 @@ package provider
 import (
 	"context"
 	"fmt"
+
 	"terraform-provider-redfish/redfish/models"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -101,10 +102,12 @@ func ManagerResetSchema() map[string]schema.Attribute {
 // Schema defines the schema for the resource.
 func (*managerResetResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This resource is used to reset the manager.",
-		Description:         "This resource is used to reset the manager.",
-		Attributes:          ManagerResetSchema(),
-		Blocks:              RedfishServerResourceBlockMap(),
+		MarkdownDescription: "This resource is used to reset the manager. Applying it resets the BMC." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
+		Description: "This resource is used to reset the manager. Applying it resets the BMC." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
+		Attributes: ManagerResetSchema(),
+		Blocks:     RedfishServerResourceBlockMap(),
 	}
 }
 
@@ -156,7 +159,7 @@ func (r *managerResetResource) Create(ctx context.Context, req resource.CreateRe
 	service = api.Service
 	defer api.Logout()
 
-	activeServer := (plan.RedfishServer)[0]
+	activeServer := plan.RedfishServer[0]
 	if err := getActiveAliasRedfishServer(r.p, &activeServer); err != nil {
 		resp.Diagnostics.AddError("Error while getting active server", err.Error())
 		return

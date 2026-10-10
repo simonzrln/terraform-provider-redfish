@@ -3,12 +3,12 @@
 page_title: "redfish_boot_order Resource - redfish"
 subcategory: ""
 description: |-
-  This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server. We can Read the existing configurations or modify them using this resource.
+  This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server. We can Read the existing configurations or modify them using this resource. Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 ---
 
 # redfish_boot_order (Resource)
 
-This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server. We can Read the existing configurations or modify them using this resource.
+This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server. We can Read the existing configurations or modify them using this resource. Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 
 ## Example Usage
 

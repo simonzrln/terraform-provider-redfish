@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.1 (2026-10-10)
+
+Hygiene release, no functional changes.
+
+- golangci-lint clean and enforced in CI.
+- `go mod tidy`: dropped unused dependencies (terraform-plugin-sdk/v2, go-git, terraform-exec and others).
+- Dependabot for Go modules and GitHub Actions.
+- Provider description no longer says "Terraform Provider Redfish".
+- Docs mark the resources inherited from Dell (`redfish_boot_order`, `redfish_boot_source_override`,
+  `redfish_power`, `redfish_manager_reset`) as not tested on AMI firmware.
+- Makefile: removed Dell's website and sweep targets and `go test -i`, added `make docs`.
+
 ## 2.0.0 (2026-10-10)
 
 First registry release of the fork of dell/terraform-provider-redfish v1.6.2.

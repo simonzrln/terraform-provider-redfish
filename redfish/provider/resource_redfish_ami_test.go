@@ -65,9 +65,11 @@ func newFakeBMC() *fakeBMC {
 			{"id": 16.0, "sensor_number": 19.0, "name": "FAN3_1", "owner_lun": 0.0, "type": "fan"},
 		},
 		"/api/settings/sensor-threshold": {
-			{"id": 19.0, "sensor_number": 19.0, "name": "FAN3_1", "owner_lun": 0.0, "settable_flag": 257.0,
+			{
+				"id": 19.0, "sensor_number": 19.0, "name": "FAN3_1", "owner_lun": 0.0, "settable_flag": 257.0,
 				"lower_non_recoverable_threshold": "NA", "lower_critical_threshold": "NA", "lower_non_critical_threshold": 400.0,
-				"higher_non_critical_threshold": "NA", "higher_critical_threshold": "NA", "higher_non_recoverable_threshold": "NA"},
+				"higher_non_critical_threshold": "NA", "higher_critical_threshold": "NA", "higher_non_recoverable_threshold": "NA",
+			},
 		},
 		"/api/settings/services": {
 			{"id": 7.0, "service_id": 256.0, "service_name": "vnc", "state": 1.0, "non_secure_port": -1.0, "secure_port": 5901.0, "time_out": 600.0, "maximum_sessions": 130.0, "active_session": 128.0},
@@ -192,8 +194,10 @@ func TestFanModeWritesOnlyManualDuty(t *testing.T) {
 
 func TestFanCurvePutsPackedTable(t *testing.T) {
 	p, servers, f := fakeProvider(t)
-	m := &models.AMIFanCurve{RedfishServer: servers, Table: types.Int64Value(2), Hysteresis: types.Int64Value(4),
-		Points: []models.AMICurvePoint{{Temp: types.Int64Value(30), Duty: types.Int64Value(40)}, {Temp: types.Int64Value(70), Duty: types.Int64Value(100)}}}
+	m := &models.AMIFanCurve{
+		RedfishServer: servers, Table: types.Int64Value(2), Hysteresis: types.Int64Value(4),
+		Points: []models.AMICurvePoint{{Temp: types.Int64Value(30), Duty: types.Int64Value(40)}, {Temp: types.Int64Value(70), Duty: types.Int64Value(100)}},
+	}
 	if err := syncFanCurve(context.Background(), p, m, true); err != nil {
 		t.Fatal(err)
 	}

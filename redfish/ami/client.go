@@ -61,7 +61,7 @@ func Login(endpoint, user, password string, transport http.RoundTripper) (*Clien
 // Logout ends the web session.
 func (c *Client) Logout() {
 	if resp, err := c.do(http.MethodDelete, "/api/session", nil); err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close() // best effort, the session times out anyway
 	}
 }
 

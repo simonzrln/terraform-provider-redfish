@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
 	"terraform-provider-redfish/common"
 	"terraform-provider-redfish/redfish/models"
 
@@ -557,7 +558,9 @@ func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes map[str
 	return attrsToPatch, diags
 }
 
-func (r *BiosResource) patchBiosAttributes(d *models.Bios, bios *redfish.Bios, settings *biosSettings, attributes map[string]interface{}) (biosTaskURI string, err error) {
+func (r *BiosResource) patchBiosAttributes(
+	d *models.Bios, bios *redfish.Bios, settings *biosSettings, attributes map[string]interface{},
+) (biosTaskURI string, err error) {
 	payload := make(map[string]interface{})
 	payload["Attributes"] = attributes
 

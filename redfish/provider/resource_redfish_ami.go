@@ -44,6 +44,9 @@ func managed[T interface {
 	return !v.IsNull() && !v.IsUnknown()
 }
 
+// maxFanTables is the number of open-loop fan tables.
+const maxFanTables = 8
+
 var idAttr = schema.StringAttribute{
 	Computed:      true,
 	PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
@@ -94,6 +97,7 @@ func NewAMIFanModeResource() resource.Resource {
 	}
 }
 
+//revive:disable-next-line:cyclomatic,cognitive-complexity read and write share one function by design.
 func syncFanMode(_ context.Context, p *redfishProvider, m *models.AMIFanMode, write bool) error {
 	return withAMI(p, m.Servers(), func(c *ami.Client) error {
 		var mode, manual ami.Object
@@ -197,7 +201,7 @@ func NewAMIFanCurveResource() resource.Resource {
 				"table": schema.Int64Attribute{
 					Description:   "Table number.",
 					Required:      true,
-					Validators:    []validator.Int64{int64validator.Between(1, 8)},
+					Validators:    []validator.Int64{int64validator.Between(1, maxFanTables)},
 					PlanModifiers: []planmodifier.Int64{int64planmodifier.RequiresReplace()},
 				},
 				"points": schema.ListNestedAttribute{
@@ -257,7 +261,8 @@ func syncFanCurve(_ context.Context, p *redfishProvider, m *models.AMIFanCurve, 
 				pts[i] = ami.CurvePoint{Temp: int(pt.Temp.ValueInt64()), Duty: int(pt.Duty.ValueInt64())}
 			}
 			newRow := maps.Clone(row)
-			if err := ami.SetCurve(newRow, pts, entries, meta.Int("min_temp"), meta.Int("max_temp"), meta.Int("min_duty"), meta.Int("max_duty")); err != nil {
+			if err := ami.SetCurve(newRow, pts, entries, meta.Int("min_temp"), meta.Int("max_temp"),
+				meta.Int("min_duty"), meta.Int("max_duty")); err != nil {
 				return fmt.Errorf("table %d: %w", table, err)
 			}
 			changed := !slices.Equal(pts, ami.Curve(row, entries))
@@ -315,7 +320,7 @@ func NewAMIFanAssignmentResource() resource.Resource {
 				"table": schema.Int64Attribute{
 					Description: "Open-loop table number.",
 					Required:    true,
-					Validators:  []validator.Int64{int64validator.Between(1, 8)},
+					Validators:  []validator.Int64{int64validator.Between(1, maxFanTables)},
 				},
 				"fans": schema.SetAttribute{
 					Description: "Fan header numbers that follow the table.",
@@ -327,6 +332,7 @@ func NewAMIFanAssignmentResource() resource.Resource {
 	}
 }
 
+//revive:disable-next-line:cyclomatic,cognitive-complexity read and write share one function by design.
 func syncFanAssignment(ctx context.Context, p *redfishProvider, m *models.AMIFanAssignment, write bool) error {
 	slot := int(m.Slot.ValueInt64())
 	return withAMI(p, m.Servers(), func(c *ami.Client) error {
@@ -413,12 +419,30 @@ var thresholdFields = []struct {
 	settableBit int
 	get         func(*models.AMISensorThreshold) *types.String
 }{
-	{"lower_non_recoverable", "lower_non_recoverable_threshold", 1 << 10, func(m *models.AMISensorThreshold) *types.String { return &m.LowerNonRecoverable }},
-	{"lower_critical", "lower_critical_threshold", 1 << 9, func(m *models.AMISensorThreshold) *types.String { return &m.LowerCritical }},
-	{"lower_non_critical", "lower_non_critical_threshold", 1 << 8, func(m *models.AMISensorThreshold) *types.String { return &m.LowerNonCritical }},
-	{"upper_non_critical", "higher_non_critical_threshold", 1 << 11, func(m *models.AMISensorThreshold) *types.String { return &m.HigherNonCritical }},
-	{"upper_critical", "higher_critical_threshold", 1 << 12, func(m *models.AMISensorThreshold) *types.String { return &m.HigherCritical }},
-	{"upper_non_recoverable", "higher_non_recoverable_threshold", 1 << 13, func(m *models.AMISensorThreshold) *types.String { return &m.HigherNonRecoverable }},
+	{
+		"lower_non_recoverable", "lower_non_recoverable_threshold", 1 << 10,
+		func(m *models.AMISensorThreshold) *types.String { return &m.LowerNonRecoverable },
+	},
+	{
+		"lower_critical", "lower_critical_threshold", 1 << 9,
+		func(m *models.AMISensorThreshold) *types.String { return &m.LowerCritical },
+	},
+	{
+		"lower_non_critical", "lower_non_critical_threshold", 1 << 8,
+		func(m *models.AMISensorThreshold) *types.String { return &m.LowerNonCritical },
+	},
+	{
+		"upper_non_critical", "higher_non_critical_threshold", 1 << 11,
+		func(m *models.AMISensorThreshold) *types.String { return &m.HigherNonCritical },
+	},
+	{
+		"upper_critical", "higher_critical_threshold", 1 << 12,
+		func(m *models.AMISensorThreshold) *types.String { return &m.HigherCritical },
+	},
+	{
+		"upper_non_recoverable", "higher_non_recoverable_threshold", 1 << 13,
+		func(m *models.AMISensorThreshold) *types.String { return &m.HigherNonRecoverable },
+	},
 }
 
 // thresholdString renders a threshold the way it is configured: "NA" or a plain number.

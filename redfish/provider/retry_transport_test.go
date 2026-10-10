@@ -45,7 +45,6 @@ func TestRetryableTransport_Success(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -80,7 +79,6 @@ func TestRetryableTransport_RetryOn500(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -115,7 +113,6 @@ func TestRetryableTransport_RetryOn503(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -150,7 +147,6 @@ func TestRetryableTransport_RetryOn429(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -209,7 +205,6 @@ func TestRetryableTransport_NoRetryOn404(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -240,7 +235,6 @@ func TestRetryableTransport_NoRetryOn400(t *testing.T) {
 
 	req, _ := http.NewRequest("GET", server.URL, nil)
 	resp, err := client.Do(req)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

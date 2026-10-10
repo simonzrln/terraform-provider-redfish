@@ -3,12 +3,12 @@
 page_title: "redfish_power Resource - redfish"
 subcategory: ""
 description: |-
-  This Terraform resource is used to configure Power attributes of the server. We can Read the existing power state or modify it using this resource.
+  This Terraform resource is used to configure Power attributes of the server. We can Read the existing power state or modify it using this resource. Applying it changes the host power state. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 ---
 
 # redfish_power (Resource)
 
-This Terraform resource is used to configure Power attributes of the server. We can Read the existing power state or modify it using this resource.
+This Terraform resource is used to configure Power attributes of the server. We can Read the existing power state or modify it using this resource. Applying it changes the host power state. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 
 ## Example Usage
 

@@ -1,9 +1,8 @@
 PKG_NAME=redfish
-VERSION?=2.0.0
+VERSION?=2.0.1
 TEST?=$$(go list ./... | grep -v 'vendor')
 INSTALL_ROOT?=~/.terraform.d/plugins
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
-WEBSITE_REPO=github.com/hashicorp/terraform-website
 HOSTNAME=registry.terraform.io
 NAMESPACE=simonzrln
 BINARY=terraform-provider-${PKG_NAME}
@@ -32,7 +31,6 @@ check:
 
 lint:
 	@echo "==> Checking source code against linters..."
-	# TODO: renable - tfproviderlint ./redfish
 	golangci-lint run --fix
 
 # vets all .go files
@@ -58,38 +56,17 @@ install: build
 	mv $(CURDIR)/bin/${OS_ARCH}/${BINARY}_v$(VERSION) $(INSTALL_ROOT)/${HOSTNAME}/${NAMESPACE}/${PKG_NAME}/${VERSION}/${OS_ARCH}
 
 test:
-	go test -i $(TEST) || exit 1
-	echo $(TEST) | xargs -t -n4 go test $(TESTARGS) -timeout=30s -parallel=4
+	go test ./redfish/... $(TESTARGS)
 
-generate:
+# regenerates docs/ (tfplugindocs via the go:generate line in main.go)
+docs generate:
 	GOFLAGS="-mod=readonly" go generate ./...
 
 testacc:
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 120m
 
-sweep:
-	go test ./redfish/provider -timeout 10m -sweep=all -v
-
-website:
-ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
-	echo "$(WEBSITE_REPO) not found in your GOPATH (necessary for layouts and assets), get-ting..."
-	git clone https://$(WEBSITE_REPO) $(GOPATH)/src/$(WEBSITE_REPO)
-endif
-	@$(MAKE) -C $(GOPATH)/src/$(WEBSITE_REPO) website-local PROVIDER_PATH=$(shell pwd) PROVIDER_NAME=$(PKG_NAME)
-
-website-lint:
-	@echo "==> Checking website against linters..."
-	@misspell -error -source=text website/
-
-website-test:
-ifeq (,$(wildcard $(GOPATH)/src/$(WEBSITE_REPO)))
-	echo "$(WEBSITE_REPO) not found in your GOPATH (necessary for layouts and assets), get-ting..."
-	git clone https://$(WEBSITE_REPO) $(GOPATH)/src/$(WEBSITE_REPO)
-endif
-	@$(MAKE) -C $(GOPATH)/src/$(WEBSITE_REPO) website-provider-test PROVIDER_PATH=$(shell pwd) PROVIDER_NAME=$(PKG_NAME)
-
 clean:
 	go clean --cache
 	rm -rf vendor bin
 
-.PHONY: build snapshot test testacc vet fmt fmtcheck errcheck lint tools test-compile website website-lint website-test
+.PHONY: default build install snapshot test testacc vet fmt fmtcheck errcheck check lint gosec docs generate clean

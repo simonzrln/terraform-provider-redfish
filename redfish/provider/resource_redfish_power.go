@@ -19,8 +19,9 @@ package provider
 
 import (
 	"context"
-	"terraform-provider-redfish/redfish/models"
 	"time"
+
+	"terraform-provider-redfish/redfish/models"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -138,9 +139,13 @@ func PowerSchema() map[string]schema.Attribute {
 func (*powerResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "This Terraform resource is used to configure Power attributes of the server." +
-			" We can Read the existing power state or modify it using this resource.",
+			" We can Read the existing power state or modify it using this resource." +
+			" Applying it changes the host power state." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
 		Description: "This Terraform resource is used to configure Power attributes of the server." +
-			" We can Read the existing power state or modify it using this resource.",
+			" We can Read the existing power state or modify it using this resource." +
+			" Applying it changes the host power state." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
 
 		Attributes: PowerSchema(),
 		Blocks:     RedfishServerResourceBlockMap(),

@@ -23,9 +23,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
 	"terraform-provider-redfish/common"
 	"terraform-provider-redfish/redfish/models"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -70,9 +71,13 @@ type BootOrderResource struct {
 func (*BootOrderResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server." +
-			" We can Read the existing configurations or modify them using this resource.",
+			" We can Read the existing configurations or modify them using this resource." +
+			" Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
 		Description: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server." +
-			" We can Read the existing configurations or modify them using this resource.",
+			" We can Read the existing configurations or modify them using this resource." +
+			" Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
 		Attributes: BootOrderSchema(),
 		Blocks:     RedfishServerResourceBlockMap(),
 	}

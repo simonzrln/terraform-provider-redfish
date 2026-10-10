@@ -21,9 +21,10 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"time"
+
 	"terraform-provider-redfish/mutexkv"
 	"terraform-provider-redfish/redfish/models"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/mapvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -68,7 +69,7 @@ func (*redfishProvider) Metadata(_ context.Context, _ provider.MetadataRequest, 
 // Schema implements provider.Provider.
 func (*redfishProvider) Schema(ctx context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Terraform Provider Redfish",
+		MarkdownDescription: "Redfish provider for AMI MegaRAC BMCs: BIOS, fans, sensor thresholds, services and accounts.",
 		Attributes: map[string]schema.Attribute{
 			fieldNameUser: schema.StringAttribute{
 				MarkdownDescription: "This field is the user to login against the redfish API",

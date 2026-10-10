@@ -24,7 +24,7 @@ thresholds and services.
 | `redfish_ami_fan_assignment` | AMI web API | Which temperature sensor drives which table for which fans. |
 | `redfish_ami_sensor_threshold` | AMI web API | Thresholds of one IPMI sensor, e.g. the lower non-critical RPM of a fan. |
 | `redfish_ami_service` | AMI web API | Enable or disable kvm, cd-media, hd-media, ssh, solssh, vnc. `web` is refused (changing it ends the session). |
-| `redfish_boot_order`, `redfish_boot_source_override`, `redfish_power`, `redfish_manager_reset` | Redfish | Unchanged from upstream apart from dropping the iDRAC generation check. |
+| `redfish_boot_order`, `redfish_boot_source_override`, `redfish_power`, `redfish_manager_reset` | Redfish | Inherited from Dell, not tested on AMI firmware. |
 
 Data sources: `redfish_bios`, `redfish_system_boot`.
 

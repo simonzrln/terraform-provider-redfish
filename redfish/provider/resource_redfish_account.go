@@ -36,16 +36,19 @@ type accountResource struct{ p *redfishProvider }
 
 var errAccountNotFound = errors.New("account not found")
 
+// Configure stores the provider.
 func (r *accountResource) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	if req.ProviderData != nil {
 		r.p = req.ProviderData.(*redfishProvider)
 	}
 }
 
+// Metadata returns the resource type name.
 func (*accountResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "account"
 }
 
+// Schema returns the resource schema.
 func (*accountResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Adopts an existing account of the Redfish AccountService by user name and manages whether it is " +
@@ -125,6 +128,7 @@ func (r *accountResource) apply(plan *models.Account) error {
 	})
 }
 
+// Create adopts the existing account and applies the plan to it.
 func (r *accountResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan models.Account
 	if resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...); resp.Diagnostics.HasError() {
@@ -137,6 +141,7 @@ func (r *accountResource) Create(ctx context.Context, req resource.CreateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
+// Read refreshes the state from the BMC.
 func (r *accountResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state models.Account
 	if resp.Diagnostics.Append(req.State.Get(ctx, &state)...); resp.Diagnostics.HasError() {
@@ -163,6 +168,7 @@ func (r *accountResource) Read(ctx context.Context, req resource.ReadRequest, re
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
+// Update applies the plan to the BMC.
 func (r *accountResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan models.Account
 	if resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...); resp.Diagnostics.HasError() {

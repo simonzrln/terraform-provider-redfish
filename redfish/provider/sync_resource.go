@@ -37,16 +37,19 @@ type syncResource[T any, PT interface {
 	sync     func(ctx context.Context, p *redfishProvider, m PT, write bool) error
 }
 
+// Configure stores the provider.
 func (r *syncResource[T, PT]) Configure(_ context.Context, req resource.ConfigureRequest, _ *resource.ConfigureResponse) {
 	if req.ProviderData != nil {
 		r.p = req.ProviderData.(*redfishProvider)
 	}
 }
 
+// Metadata returns the resource type name.
 func (r *syncResource[T, PT]) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + r.typeName
 }
 
+// Schema returns the resource schema.
 func (r *syncResource[T, PT]) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = r.schema
 	resp.Schema.Blocks = RedfishServerResourceBlockMap()
@@ -60,6 +63,7 @@ func (r *syncResource[T, PT]) write(ctx context.Context, plan PT, diags interfac
 	return true
 }
 
+// Create applies the plan to the BMC.
 func (r *syncResource[T, PT]) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan T
 	if resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...); resp.Diagnostics.HasError() {
@@ -70,6 +74,7 @@ func (r *syncResource[T, PT]) Create(ctx context.Context, req resource.CreateReq
 	}
 }
 
+// Read refreshes the state from the BMC.
 func (r *syncResource[T, PT]) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state T
 	if resp.Diagnostics.Append(req.State.Get(ctx, &state)...); resp.Diagnostics.HasError() {
@@ -82,6 +87,7 @@ func (r *syncResource[T, PT]) Read(ctx context.Context, req resource.ReadRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
+// Update applies the plan to the BMC.
 func (r *syncResource[T, PT]) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan T
 	if resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...); resp.Diagnostics.HasError() {

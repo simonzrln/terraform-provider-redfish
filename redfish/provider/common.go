@@ -24,8 +24,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"terraform-provider-redfish/redfish/models"
 	"time"
+
+	"terraform-provider-redfish/redfish/models"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"

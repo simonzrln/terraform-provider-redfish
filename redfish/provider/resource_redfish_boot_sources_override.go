@@ -20,9 +20,10 @@ package provider
 import (
 	"context"
 	"net/http"
+	"time"
+
 	"terraform-provider-redfish/common"
 	"terraform-provider-redfish/redfish/models"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -65,9 +66,13 @@ type BootSourceOverrideResource struct {
 // Schema implements resource.Resource.
 func (*BootSourceOverrideResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This Terraform resource is used to configure Boot sources of the server.",
-		Description:         "This Terraform resource is used to configure Boot sources of the server.",
-		Attributes:          BootSourceOverrideSchema(),
+		MarkdownDescription: "This Terraform resource is used to configure Boot sources of the server." +
+			" Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
+		Description: "This Terraform resource is used to configure Boot sources of the server." +
+			" Restarts the server with reset_type only when the BMC answers the PATCH with a job or task Location; otherwise it does not reboot." +
+			" Inherited from the Dell provider and not tested on AMI MegaRAC firmware.",
+		Attributes: BootSourceOverrideSchema(),
 		Blocks: map[string]schema.Block{
 			"redfish_server": schema.ListNestedBlock{
 				MarkdownDescription: "List of server BMCs and their respective user credentials",

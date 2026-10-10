@@ -3,12 +3,12 @@
 page_title: "redfish_manager_reset Resource - redfish"
 subcategory: ""
 description: |-
-  This resource is used to reset the manager.
+  This resource is used to reset the manager. Applying it resets the BMC. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 ---
 
 # redfish_manager_reset (Resource)
 
-This resource is used to reset the manager.
+This resource is used to reset the manager. Applying it resets the BMC. Inherited from the Dell provider and not tested on AMI MegaRAC firmware.
 
 ## Example Usage
 

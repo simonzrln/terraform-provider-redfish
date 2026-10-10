@@ -121,7 +121,7 @@ func readProtocols(service *gofish.Service, uri string) (map[string]protocol, er
 	return out, nil
 }
 
-func networkProtocolURI(service *gofish.Service, managerID string) (string, string, error) {
+func networkProtocolURI(service *gofish.Service, managerID string) (id, uri string, err error) {
 	managers, err := service.Managers()
 	if err != nil {
 		return "", "", err
@@ -134,6 +134,7 @@ func networkProtocolURI(service *gofish.Service, managerID string) (string, stri
 	return "", "", fmt.Errorf("manager %q not found", managerID)
 }
 
+//revive:disable-next-line:cyclomatic,cognitive-complexity read and write share one function by design.
 func syncNetworkProtocol(ctx context.Context, p *redfishProvider, m *models.ManagerNetworkProtocol, write bool) error {
 	return withRedfish(p, &m.RedfishServer, func(service *gofish.Service) error {
 		id, uri, err := networkProtocolURI(service, m.ManagerID.ValueString())
