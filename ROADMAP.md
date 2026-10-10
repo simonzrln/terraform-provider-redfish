@@ -2,7 +2,7 @@
 
 Ideas for the next releases, ordered by value for a homelab running an AMI MegaRAC
 board (developed on an ASRock Rack B650D4U, BMC firmware 6.09). Nothing here is
-promised. Candidates for 2.1.0 are marked **(2.1)**.
+promised. Items marked **(2.1)** shipped in 2.1.0.
 
 ## New settings
 

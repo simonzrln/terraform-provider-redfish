@@ -76,6 +76,33 @@ type AMIService struct {
 	RedfishServer []RedfishServer `tfsdk:"redfish_server"`
 }
 
+// AMISELPolicy is the state of redfish_ami_sel_policy.
+type AMISELPolicy struct {
+	ID            types.String    `tfsdk:"id"`
+	Policy        types.String    `tfsdk:"policy"`
+	RedfishServer []RedfishServer `tfsdk:"redfish_server"`
+}
+
+// AMISyslog is the state of redfish_ami_syslog.
+type AMISyslog struct {
+	ID             types.String    `tfsdk:"id"`
+	RemoteEnabled  types.Bool      `tfsdk:"remote_enabled"`
+	RemoteServer   types.String    `tfsdk:"remote_server"`
+	RemotePort     types.Int64     `tfsdk:"remote_port"`
+	RemoteProtocol types.String    `tfsdk:"remote_protocol"`
+	RedfishServer  []RedfishServer `tfsdk:"redfish_server"`
+}
+
+// AMIFirmware is the state of the redfish_ami_firmware data source.
+type AMIFirmware struct {
+	ID               types.String    `tfsdk:"id"`
+	BMCVersion       types.String    `tfsdk:"bmc_version"`
+	BIOSVersion      types.String    `tfsdk:"bios_version"`
+	PSPVersion       types.String    `tfsdk:"psp_version"`
+	MicrocodeVersion types.String    `tfsdk:"microcode_version"`
+	RedfishServer    []RedfishServer `tfsdk:"redfish_server"`
+}
+
 // Servers implements the provider's serverModel.
 func (m *AMIFanMode) Servers() *[]RedfishServer { return &m.RedfishServer }
 
@@ -90,3 +117,9 @@ func (m *AMISensorThreshold) Servers() *[]RedfishServer { return &m.RedfishServe
 
 // Servers implements the provider's serverModel.
 func (m *AMIService) Servers() *[]RedfishServer { return &m.RedfishServer }
+
+// Servers implements the provider's serverModel.
+func (m *AMISELPolicy) Servers() *[]RedfishServer { return &m.RedfishServer }
+
+// Servers implements the provider's serverModel.
+func (m *AMISyslog) Servers() *[]RedfishServer { return &m.RedfishServer }

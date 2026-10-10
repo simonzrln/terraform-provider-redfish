@@ -13,13 +13,19 @@ This Terraform resource is used to configure Bios attributes of the server. We c
 ## Example Usage
 
 ```terraform
-# Raw Redfish attribute names, see the attribute registry under /redfish/v1/Registries.
+# settings uses the names and values the BIOS setup shows, mapped through the
+# attribute registry the BMC publishes; attributes takes raw Redfish names.
+# A display name shared by several attributes takes its menu path as prefix.
 # reset_type is not set: changes stay pending (pending_reboot = true) until the next reboot.
 resource "redfish_bios" "board" {
   redfish_server { redfish_alias = "bmc" }
+  settings = {
+    "SVM Enable"                                  = "Enabled"
+    "IOMMU"                                       = "Enabled"
+    "Server Mgmt/BMC Tools/Restore AC Power Loss" = "No change"
+  }
   attributes = {
-    CbsCpuSvmEnableRPL  = "CbsCpuSvmEnableRPLEnabled"
-    CbsCmnGnbNbIOMMURPL = "CbsCmnGnbNbIOMMURPLEnabled"
+    Pbs_CoreCountControl = "Pbs_CoreCountControlDisabled"
   }
 }
 ```
@@ -34,6 +40,7 @@ resource "redfish_bios" "board" {
 - `redfish_server` (Block List) List of server BMCs and their respective user credentials (see [below for nested schema](#nestedblock--redfish_server))
 - `reset_timeout` (Number) reset_timeout is the time in seconds that the provider waits for the server to be reset before timing out.
 - `reset_type` (String) Reset type to apply on the computer system after the BIOS settings are applied. Applicable values are 'ForceRestart', 'GracefulRestart', and 'PowerCycle'. When unset, the provider never reboots: changes stay pending until the next reboot (see pending_reboot).
+- `settings` (Map of String) BIOS settings by display name, as the BIOS setup shows them, e.g. "Restore AC Power Loss" = "Power On". Mapped to raw attributes through the BIOS attribute registry the BMC publishes. A display name that several attributes share takes its menu path, e.g. "Server Mgmt/BMC Tools/Restore AC Power Loss"; if that is still ambiguous, use attributes. Password attributes are not supported. An attribute may be set either here or in attributes, not both.
 - `settings_apply_time` (String) The time when the BIOS settings can be applied. Applicable value is 'OnReset' only. In upcoming releases other apply time values will be supported. Default is "OnReset".
 - `system_id` (String) System ID of the system
 

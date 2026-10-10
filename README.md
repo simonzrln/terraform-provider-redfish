@@ -24,9 +24,13 @@ thresholds and services.
 | `redfish_ami_fan_assignment` | AMI web API | Which temperature sensor drives which table for which fans. |
 | `redfish_ami_sensor_threshold` | AMI web API | Thresholds of one IPMI sensor, e.g. the lower non-critical RPM of a fan. |
 | `redfish_ami_service` | AMI web API | Enable or disable kvm, cd-media, hd-media, ssh, solssh, vnc. `web` is refused (changing it ends the session). |
+| `redfish_ami_sel_policy` | AMI web API | SEL storage policy, `linear` or `circular`. A full linear SEL stops recording. |
+| `redfish_ami_syslog` | AMI web API | Remote syslog forwarding (server, port, udp/tcp). Local log settings are left alone. |
+| `redfish_power_restore_policy` | Redfish | What the host does when AC power returns. Manage it here or via the BIOS option "Restore AC Power Loss", not both. |
 | `redfish_boot_order`, `redfish_boot_source_override`, `redfish_power`, `redfish_manager_reset` | Redfish | Inherited from Dell, not tested on AMI firmware. |
 
-Data sources: `redfish_bios`, `redfish_system_boot`.
+Data sources: `redfish_bios`, `redfish_system_boot`, `redfish_ami_firmware` (BMC, BIOS, PSP and
+microcode versions, meant for a `check` block that warns after a firmware update).
 
 Conventions that differ from upstream:
 
@@ -103,9 +107,12 @@ resource "redfish_account" "monitor" {
 }
 ```
 
-BIOS attribute names and values are the raw Redfish names (`CbsCpuSvmEnableRPL`),
-not the setup-menu labels. Map them with the attribute registry linked from
-`/redfish/v1/Registries`.
+`redfish_bios` takes BIOS options two ways. `attributes` uses the raw Redfish names
+(`CbsCpuSvmEnableRPL = "CbsCpuSvmEnableRPLEnabled"`). `settings` uses the setup-menu labels
+(`"SVM Enable" = "Enabled"`) and maps them through the BIOS attribute registry the BMC
+publishes. Labels that appear in several menus need the menu path as prefix
+(`"Server Mgmt/BMC Tools/Restore AC Power Loss"`); the error lists the candidates when a
+label is ambiguous.
 
 ## Compatibility
 

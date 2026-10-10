@@ -1,0 +1,309 @@
+{
+ "@odata.context": "/redfish/v1/$metadata#AttributeRegistry.AttributeRegistry",
+ "@odata.etag": "Dummyetag",
+ "@odata.id": "/redfish/v1/Registries/BiosAttributeRegistryA2982.en-US.22.10.0.json",
+ "@odata.type": "#AttributeRegistry.v1_3_1.AttributeRegistry",
+ "Description": "This registry defines a representation of BIOS Attribute instances",
+ "Id": "BiosAttributeRegistryA2982.en-US.22.10.0",
+ "Language": "en-US",
+ "Name": "A2982 BIOS Attribute Registry",
+ "OwningEntity": "AMI",
+ "RegistryEntries": {
+  "Attributes": [
+   {
+    "AttributeName": "TER001",
+    "DefaultValue": "Disabled",
+    "DisplayName": "Console Redirection",
+    "HelpText": "Console Redirection Enable or Disable.",
+    "MenuPath": "./Advanced/Serial Port Console Redirection",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "Disabled"
+     },
+     {
+      "ValueDisplayName": "Enabled",
+      "ValueName": "Enabled"
+     }
+    ]
+   },
+   {
+    "AttributeName": "TER002",
+    "DefaultValue": "Disabled",
+    "DisplayName": "Console Redirection",
+    "HelpText": "Console Redirection Enable or Disable.",
+    "MenuPath": "./Advanced/Serial Port Console Redirection",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "Disabled"
+     },
+     {
+      "ValueDisplayName": "Enabled",
+      "ValueName": "Enabled"
+     }
+    ]
+   },
+   {
+    "AttributeName": "TER012",
+    "DefaultValue": "VT100Plus",
+    "DisplayName": "Terminal Type",
+    "HelpText": "Emulation: ANSI: Extended ASCII char set. VT100: ASCII char set. VT100Plus: Extends VT100 to support color, function keys, etc. VT-UTF8: Uses UTF8 encoding to map Unicode chars onto 1 or more bytes.",
+    "MenuPath": "./Advanced/Serial Port Console Redirection/COM1",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "VT100",
+      "ValueName": "TER012VT100"
+     },
+     {
+      "ValueDisplayName": "VT100Plus",
+      "ValueName": "TER012VT100Plus"
+     },
+     {
+      "ValueDisplayName": "VT-UTF8",
+      "ValueName": "TER012VTUTF8"
+     },
+     {
+      "ValueDisplayName": "ANSI",
+      "ValueName": "TER012ANSI"
+     }
+    ]
+   },
+   {
+    "AttributeName": "TER013",
+    "DefaultValue": "VT100Plus",
+    "DisplayName": "Terminal Type",
+    "HelpText": "Emulation: ANSI: Extended ASCII char set. VT100: ASCII char set. VT100Plus: Extends VT100 to support color, function keys, etc. VT-UTF8: Uses UTF8 encoding to map Unicode chars onto 1 or more bytes.",
+    "MenuPath": "./Advanced/Serial Port Console Redirection/SOL",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "VT100",
+      "ValueName": "TER013VT100"
+     },
+     {
+      "ValueDisplayName": "VT100Plus",
+      "ValueName": "TER013VT100Plus"
+     },
+     {
+      "ValueDisplayName": "VT-UTF8",
+      "ValueName": "TER013VTUTF8"
+     },
+     {
+      "ValueDisplayName": "ANSI",
+      "ValueName": "TER013ANSI"
+     }
+    ]
+   },
+   {
+    "AttributeName": "SETUP001",
+    "DisplayName": "Supervisor Password",
+    "HelpText": "Set or change the password for the administrator account. Only the administrator has authority to change the settings in the UEFI Setup Utility. Leave it blank and press enter to remove the password.",
+    "MaxLength": 16,
+    "MenuPath": "./Setup/Security",
+    "MinLength": 3,
+    "ReadOnly": false,
+    "ResetRequired": false,
+    "Type": "Password",
+    "UefiNamespaceId": "x-UEFI-AMI"
+   },
+   {
+    "AttributeName": "SECB001",
+    "DefaultValue": "Disabled",
+    "DisplayName": "Secure Boot",
+    "HelpText": "Enable to support Windows Server 2012 R2 or later versions Secure Boot.",
+    "MenuPath": "./Security/Secure Boot",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "SECB001Disabled"
+     },
+     {
+      "ValueDisplayName": "Enabled",
+      "ValueName": "SECB001Enabled"
+     }
+    ]
+   },
+   {
+    "AttributeName": "SETUP003",
+    "DefaultValue": 1,
+    "DisplayName": "Setup Prompt Timeout",
+    "HelpText": "Configure the number of seconds to wait for the UEFI setup utility.",
+    "LowerBound": 0,
+    "MenuPath": "./Setup/Boot",
+    "ReadOnly": false,
+    "ResetRequired": false,
+    "ScalarIncrement": 1,
+    "Type": "Integer",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "UpperBound": 65535
+   },
+   {
+    "AttributeName": "Pbs_ProcessorAggregatorDevice",
+    "DefaultValue": "Enabled ",
+    "DisplayName": "Processor Aggregator Device",
+    "HelpText": "Enable/Disable Processor Aggregator Device",
+    "MenuPath": "./Advanced/AMD PBS Option",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "Pbs_ProcessorAggregatorDeviceDisabled"
+     },
+     {
+      "ValueDisplayName": "Enabled ",
+      "ValueName": "Pbs_ProcessorAggregatorDeviceEnabled"
+     }
+    ]
+   },
+   {
+    "AttributeName": "Pbs_CoreCountControl",
+    "DefaultValue": "Enabled ",
+    "DisplayName": " Core Count Control",
+    "HelpText": "Enable/Disable Core Count Control",
+    "MenuPath": "./Advanced/AMD PBS Option",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "Pbs_CoreCountControlDisabled"
+     },
+     {
+      "ValueDisplayName": "Enabled ",
+      "ValueName": "Pbs_CoreCountControlEnabled"
+     }
+    ]
+   },
+   {
+    "AttributeName": "CbsCmnGnbPowerSupplyIdleCtrlRPL",
+    "DefaultValue": "Auto",
+    "DisplayName": "Power Supply Idle Control",
+    "HelpText": "Power Supply Idle Control.",
+    "MenuPath": "./Advanced/AMD CBS/CPU Common Options",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Low Current Idle",
+      "ValueName": "CbsCmnGnbPowerSupplyIdleCtrlRPLLowCurrentIdle"
+     },
+     {
+      "ValueDisplayName": "Typical Current Idle",
+      "ValueName": "CbsCmnGnbPowerSupplyIdleCtrlRPLTypicalCurrentIdle"
+     },
+     {
+      "ValueDisplayName": "Auto",
+      "ValueName": "CbsCmnGnbPowerSupplyIdleCtrlRPLAuto"
+     }
+    ]
+   },
+   {
+    "AttributeName": "CbsCpuSvmEnableRPL",
+    "DefaultValue": "Auto",
+    "DisplayName": "SVM Enable",
+    "HelpText": "Enable or Disable VM_CR[SvmeDisable]",
+    "MenuPath": "./Advanced/AMD CBS/CPU Common Options",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Enabled",
+      "ValueName": "CbsCpuSvmEnableRPLEnabled"
+     },
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "CbsCpuSvmEnableRPLDisabled"
+     },
+     {
+      "ValueDisplayName": "Auto",
+      "ValueName": "CbsCpuSvmEnableRPLAuto"
+     }
+    ]
+   },
+   {
+    "AttributeName": "CbsCmnGnbNbIOMMURPL",
+    "DefaultValue": "Auto",
+    "DisplayName": "IOMMU",
+    "HelpText": "Enable/Disable IOMMU",
+    "MenuPath": "./Advanced/AMD CBS/NBIO Common Options",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Disabled",
+      "ValueName": "CbsCmnGnbNbIOMMURPLDisabled"
+     },
+     {
+      "ValueDisplayName": "Enabled",
+      "ValueName": "CbsCmnGnbNbIOMMURPLEnabled"
+     },
+     {
+      "ValueDisplayName": "Auto",
+      "ValueName": "CbsCmnGnbNbIOMMURPLAuto"
+     }
+    ]
+   },
+   {
+    "AttributeName": "ACPLBMC000",
+    "DefaultValue": "No change",
+    "DisplayName": "Restore AC Power Loss",
+    "HelpText": "Select the power state after a power failure. If [Power Off] is selected, the power will remain off when the power recovers. If [Power On] is selected, the system will start to boot up when the power recovers.",
+    "MenuPath": "./Server Mgmt/BMC Tools",
+    "ReadOnly": false,
+    "ResetRequired": true,
+    "Type": "Enumeration",
+    "UefiNamespaceId": "x-UEFI-AMI",
+    "Value": [
+     {
+      "ValueDisplayName": "Power Off",
+      "ValueName": "ACPLBMC000PowerOff"
+     },
+     {
+      "ValueDisplayName": "Last State",
+      "ValueName": "ACPLBMC000LastState"
+     },
+     {
+      "ValueDisplayName": "Power On",
+      "ValueName": "ACPLBMC000PowerOn"
+     },
+     {
+      "ValueDisplayName": "No change",
+      "ValueName": "ACPLBMC000Nochange"
+     }
+    ]
+   }
+  ]
+ },
+ "RegistryVersion": "22.10.0"
+}

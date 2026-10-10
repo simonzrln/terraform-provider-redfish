@@ -35,6 +35,7 @@ type BiosDatasource struct {
 type Bios struct {
 	ID                types.String    `tfsdk:"id"`
 	Attributes        types.Map       `tfsdk:"attributes"`
+	Settings          types.Map       `tfsdk:"settings"`
 	RedfishServer     []RedfishServer `tfsdk:"redfish_server"`
 	SettingsApplyTime types.String    `tfsdk:"settings_apply_time"`
 	ResetType         types.String    `tfsdk:"reset_type"`

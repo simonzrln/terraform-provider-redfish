@@ -188,9 +188,12 @@ func (*redfishProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewAMIFanAssignmentResource,
 		NewAMISensorThresholdResource,
 		NewAMIServiceResource,
+		NewAMISELPolicyResource,
+		NewAMISyslogResource,
 		NewManagerResetResource,
 		NewBootOrderResource,
 		NewBootSourceOverrideResource,
+		NewPowerRestorePolicyResource,
 	}
 }
 
@@ -199,6 +202,7 @@ func (*redfishProvider) DataSources(_ context.Context) []func() datasource.DataS
 	return []func() datasource.DataSource{
 		NewBiosDatasource,
 		NewSystemBootDatasource,
+		NewAMIFirmwareDatasource,
 	}
 }
 

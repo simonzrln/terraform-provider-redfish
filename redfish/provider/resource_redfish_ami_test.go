@@ -30,7 +30,7 @@ import (
 // shapes captured from a B650D4U (firmware 6.09) on 2026-10-10.
 type fakeBMC struct {
 	mu       sync.Mutex
-	objects  map[string]ami.Object   // singletons: fan/mode, fan/manual
+	objects  map[string]ami.Object   // singletons: fan/mode, fan/manual, log, log-policy, fw-info
 	rows     map[string][]ami.Object // collections: openloop, assignment, services, sensors, temp_sensors
 	requests []string                // "METHOD path" of every write
 	bodies   map[string]ami.Object   // last body per write path
@@ -45,7 +45,14 @@ func newFakeBMC() *fakeBMC {
 		manual["duty"+strconv.Itoa(i)] = 30.0
 	}
 	mode["fan3"], manual["duty3"] = 2.0, 60.0
-	f.objects = map[string]ami.Object{"/api/settings/fan/mode": mode, "/api/settings/fan/manual": manual}
+	f.objects = map[string]ami.Object{
+		"/api/settings/fan/mode": mode, "/api/settings/fan/manual": manual,
+		"/api/settings/log-policy": mustObject(`{"id": 1, "policy": 0}`),
+		"/api/settings/log": mustObject(`{"id": 1, "audit_log": 1, "system_log": 1, "port_type": 0, "file_size": 50000,
+			"rotate_count": 0, "port": 0, "server_addr": "", "remote": 0, "local": 1}`),
+		"/api/asrr/fw-info": mustObject(`{"BMC_fw_version": "6.09.00", "BIOS_fw_version": "22.10", "ME_fw_version": "N/A",
+			"PSP_fw_version": "00.42.00.1E", "Micro_Code_version": "0b404035", "CPLD_version": "N/A", "BP_version": "N/A"}`),
+	}
 	table2 := ami.Object{"id": 2.0, "Hysteresis": 5.0, "RampUpInterval": 0.0, "RampUpDuty": 0.0, "RampDownInterval": 1.0, "RampDownDuty": 1.0}
 	_ = ami.SetCurve(table2, []ami.CurvePoint{{Temp: 20, Duty: 30}, {Temp: 45, Duty: 45}, {Temp: 55, Duty: 65}, {Temp: 65, Duty: 85}, {Temp: 75, Duty: 100}}, 24, 1, 120, 20, 100)
 	f.rows = map[string][]ami.Object{
@@ -99,7 +106,7 @@ func (f *fakeBMC) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		f.bodies[r.URL.Path] = body
 	}
 	if obj, ok := f.objects[r.URL.Path]; ok {
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			for k, v := range body {
 				obj[k] = toFloat(v)
 			}
@@ -147,6 +154,14 @@ func (f *fakeBMC) threshold(w http.ResponseWriter, r *http.Request, body ami.Obj
 		}
 	}
 	_ = json.NewEncoder(w).Encode(row)
+}
+
+func mustObject(s string) ami.Object {
+	var o ami.Object
+	if err := json.Unmarshal([]byte(s), &o); err != nil {
+		panic(err)
+	}
+	return o
 }
 
 func toFloat(v interface{}) interface{} {
@@ -252,5 +267,95 @@ func TestServiceDisableSendsFormFieldsAsStrings(t *testing.T) {
 	b := f.bodies["/api/settings/services/7"]
 	if b.Int("state") != 0 || b["secure_port"] != "5901" || b["active_session"] != "128" || b["maximum_sessions"] != 130.0 || m.Enabled.ValueBool() {
 		t.Fatalf("PUT body = %v, state = %v", b, m.Enabled)
+	}
+}
+
+func TestSELPolicy(t *testing.T) {
+	p, servers, f := fakeProvider(t)
+	m := &models.AMISELPolicy{RedfishServer: servers}
+	if err := syncSELPolicy(context.Background(), p, m, false); err != nil || m.Policy.ValueString() != "linear" || m.ID.ValueString() != "log-policy" {
+		t.Fatalf("read: %v, state = %+v", err, m)
+	}
+	if err := syncSELPolicy(context.Background(), p, m, true); err != nil || len(f.requests) != 0 {
+		t.Fatalf("no-op apply: %v, writes = %v", err, f.requests)
+	}
+	m.Policy = types.StringValue("circular")
+	if err := syncSELPolicy(context.Background(), p, m, true); err != nil {
+		t.Fatal(err)
+	}
+	if b := f.bodies["/api/settings/log-policy"]; len(f.requests) != 1 || f.requests[0] != "PUT /api/settings/log-policy" ||
+		b.Int("policy") != 1 || b.Int("id") != 1 || m.Policy.ValueString() != "circular" {
+		t.Fatalf("writes = %v, body = %v, state = %v", f.requests, b, m.Policy)
+	}
+	f.objects["/api/settings/log-policy"]["policy"] = 7.0
+	if err := syncSELPolicy(context.Background(), p, m, false); err == nil {
+		t.Fatal("an unknown policy value must fail")
+	}
+}
+
+func TestSyslogMergesRemoteFields(t *testing.T) {
+	p, servers, f := fakeProvider(t)
+	m := &models.AMISyslog{RedfishServer: servers, RemoteEnabled: types.BoolValue(true)}
+	if err := syncSyslog(context.Background(), p, m, true); err == nil || len(f.requests) != 0 {
+		t.Fatalf("remote_enabled without a server must fail before any write: %v, writes = %v", err, f.requests)
+	}
+	m.RemoteServer, m.RemoteProtocol = types.StringValue("192.0.2.20"), types.StringValue("udp")
+	// No port: the UI would silently send 514; the provider refuses, so plan and state never disagree.
+	if err := syncSyslog(context.Background(), p, m, true); err == nil || len(f.requests) != 0 {
+		t.Fatalf("remote_enabled without a port must fail before any write: %v", err)
+	}
+	m.RemotePort = types.Int64Value(514)
+	for _, bad := range []string{"127.0.0.1", "localhost", "bad_host!"} {
+		m.RemoteServer = types.StringValue(bad)
+		if err := syncSyslog(context.Background(), p, m, true); err == nil || len(f.requests) != 0 {
+			t.Fatalf("remote_server %q must be refused before any write: %v", bad, err)
+		}
+	}
+	m.RemoteServer = types.StringValue("192.0.2.20")
+	if err := syncSyslog(context.Background(), p, m, true); err != nil {
+		t.Fatal(err)
+	}
+	b := f.bodies["/api/settings/log"]
+	if len(f.requests) != 1 || f.requests[0] != "PUT /api/settings/log" || b["file_size"] != 50000.0 || b["local"] != 1.0 ||
+		b["remote"] != 1.0 || b["port_type"] != 1.0 || b["port"] != 514.0 || b["server_addr"] != "192.0.2.20" {
+		t.Fatalf("writes = %v, body = %v", f.requests, b)
+	}
+	if m.RemotePort.ValueInt64() != 514 || m.ID.ValueString() != "log" || !m.RemoteEnabled.ValueBool() {
+		t.Fatalf("state = %+v", m)
+	}
+}
+
+func TestSyslogReadsUnsetProtocolAsNull(t *testing.T) {
+	p, servers, _ := fakeProvider(t)
+	m := &models.AMISyslog{RedfishServer: servers}
+	if err := syncSyslog(context.Background(), p, m, false); err != nil {
+		t.Fatal(err)
+	}
+	if !m.RemoteProtocol.IsNull() || m.RemoteEnabled.ValueBool() || m.RemoteServer.ValueString() != "" {
+		t.Fatalf("state = %+v", m)
+	}
+}
+
+func TestFirmwareRead(t *testing.T) {
+	p, servers, _ := fakeProvider(t)
+	m := &models.AMIFirmware{RedfishServer: servers}
+	if err := readAMIFirmware(p, m); err != nil {
+		t.Fatal(err)
+	}
+	if m.BMCVersion.ValueString() != "6.09.00" || m.BIOSVersion.ValueString() != "22.10" ||
+		m.PSPVersion.ValueString() != "00.42.00.1E" || m.MicrocodeVersion.ValueString() != "0b404035" {
+		t.Fatalf("state = %+v", m)
+	}
+}
+
+func TestSyslogNeedsSystemLogging(t *testing.T) {
+	p, servers, f := fakeProvider(t)
+	f.objects["/api/settings/log"]["system_log"] = 0.0
+	m := &models.AMISyslog{
+		RedfishServer: servers, RemoteEnabled: types.BoolValue(true), RemoteServer: types.StringValue("192.0.2.20"),
+		RemotePort: types.Int64Value(514), RemoteProtocol: types.StringValue("udp"),
+	}
+	if err := syncSyslog(context.Background(), p, m, true); err == nil || len(f.requests) != 0 {
+		t.Fatalf("forwarding with system logging off must fail before any write: %v, writes = %v", err, f.requests)
 	}
 }

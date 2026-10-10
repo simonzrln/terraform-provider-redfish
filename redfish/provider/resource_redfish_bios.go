@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -106,8 +108,17 @@ func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 				Optional:            true,
 				Computed:            true,
 				PlanModifiers: []planmodifier.Map{
-					mapplanmodifier.UseStateForUnknown(),
+					biosAttributesModifier{},
 				},
+			},
+			"settings": schema.MapAttribute{
+				Description: "BIOS settings by display name, as the BIOS setup shows them, e.g. " +
+					"\"Restore AC Power Loss\" = \"Power On\". Mapped to raw attributes through the BIOS attribute registry " +
+					"the BMC publishes. A display name that several attributes share takes its menu path, e.g. " +
+					"\"Server Mgmt/BMC Tools/Restore AC Power Loss\"; if that is still ambiguous, use attributes. " +
+					"Password attributes are not supported. An attribute may be set either here or in attributes, not both.",
+				ElementType: types.StringType,
+				Optional:    true,
 			},
 			"settings_apply_time": schema.StringAttribute{
 				Optional: true,
@@ -219,7 +230,7 @@ func (r *BiosResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	service := api.Service
 	defer api.Logout()
 
-	err = r.readRedfishDellBiosAttributes(service, &state)
+	err = r.readRedfishDellBiosAttributes(service, &state, nil)
 	if err != nil {
 		diags.AddError("Error running job", err.Error())
 	}
@@ -342,9 +353,16 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 		return nil, diags
 	}
 
+	reg, fromSettings, err := biosSettingsToRaw(ctx, bios, plan)
+	if err != nil {
+		diags.AddError("error mapping BIOS settings", err.Error())
+		return nil, diags
+	}
+	wantSettings := plan.Settings.Elements()
+
 	// Diff against the pending settings object, not the running BIOS: a value that is
 	// already pending must not be patched again on every apply.
-	attrsPayload, diagsAttr := getBiosAttrsToPatch(ctx, plan, settings.future)
+	attrsPayload, diagsAttr := getBiosAttrsToPatch(ctx, plan, settings.future, fromSettings)
 	diags.Append(diagsAttr...)
 	if diags.HasError() {
 		return nil, diags
@@ -367,7 +385,10 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 	}
 
 	state.ID = types.StringValue(bios.ODataID)
-	err = r.readRedfishDellBiosAttributes(service, state)
+	err = r.readRedfishDellBiosAttributes(service, state, reg)
+	if err == nil {
+		err = biosSettingsStored(wantSettings, state.Settings)
+	}
 	if err != nil {
 		diags.AddError("unable to fetch currrent bios values", err.Error())
 		return nil, diags
@@ -390,7 +411,7 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 			return nil, diags
 		}
 	}
-	err = r.readRedfishDellBiosAttributes(service, state)
+	err = r.readRedfishDellBiosAttributes(service, state, reg)
 	if err != nil {
 		diags.AddError("unable to fetch currrent bios values", err.Error())
 		return nil, diags
@@ -399,7 +420,8 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 	return state, nil
 }
 
-func (*BiosResource) readRedfishDellBiosAttributes(service *gofish.Service, d *models.Bios) error {
+// readRedfishDellBiosAttributes refreshes d; reg may be nil, it is then loaded when settings is used.
+func (*BiosResource) readRedfishDellBiosAttributes(service *gofish.Service, d *models.Bios, reg biosRegistry) error {
 	system, err := getSystemResource(service, d.SystemID.ValueString())
 	if err != nil {
 		return fmt.Errorf("error fetching BIOS resource: %w", err)
@@ -426,6 +448,9 @@ func (*BiosResource) readRedfishDellBiosAttributes(service *gofish.Service, d *m
 	var old map[string]attr.Value
 	if !d.Attributes.IsNull() && !d.Attributes.IsUnknown() {
 		old = d.Attributes.Elements()
+	} else if !d.Settings.IsNull() {
+		// Unset attributes next to settings: do not pull every BIOS attribute into state.
+		old = map[string]attr.Value{}
 	}
 	attributesTF := make(map[string]attr.Value)
 	pending := false
@@ -439,6 +464,20 @@ func (*BiosResource) readRedfishDellBiosAttributes(service *gofish.Service, d *m
 		if old != nil && current[key] != value {
 			pending = true
 		}
+	}
+
+	if !d.Settings.IsNull() {
+		r := reg
+		if r == nil {
+			if r, err = loadBiosRegistry(bios); err != nil {
+				return err
+			}
+		}
+		settingsPending, err := readBiosSettings(r, d, current, settings.future)
+		if err != nil {
+			return err
+		}
+		pending = pending || settingsPending
 	}
 
 	d.Attributes = types.MapValueMust(types.StringType, attributesTF)
@@ -488,11 +527,7 @@ func getBiosSettings(bios *redfish.Bios) (*biosSettings, error) {
 	// A settings object may list only the attributes that change; fill in the rest.
 	s.future = current
 	for k, v := range obj.Attributes {
-		if str, ok := v.(string); ok {
-			s.future[k] = str
-		} else {
-			s.future[k] = fmt.Sprintf("%v", v)
-		}
+		s.future[k] = biosValueString(v)
 	}
 	return s, nil
 }
@@ -513,21 +548,22 @@ func copyBiosAttributes(bios *redfish.Bios, attributes map[string]string) error 
 	// copy from the BIOS attributes to the new bios attributes map
 	// for key, value := range bios.Attributes {
 	for key, value := range bios.Attributes {
-		if attrVal, ok := value.(string); ok {
-			attributes[key] = attrVal
-		} else {
-			attributes[key] = fmt.Sprintf("%v", value)
-		}
+		attributes[key] = biosValueString(value)
 	}
 	return nil
 }
 
 // nolint: revive
-func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes map[string]string) (map[string]interface{}, diag.Diagnostics) {
+func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes, fromSettings map[string]string,
+) (map[string]interface{}, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	attrs := make(map[string]string)
 	attrsToPatch := make(map[string]interface{})
 	diags.Append(d.Attributes.ElementsAs(ctx, &attrs, true)...)
+	if attrs == nil { // unset (unknown) attributes
+		attrs = map[string]string{}
+	}
+	maps.Copy(attrs, fromSettings)
 
 	for key, newVal := range attrs {
 		oldVal, ok := attributes[key]
@@ -594,4 +630,224 @@ func (r *BiosResource) patchBiosAttributes(
 		return location.EscapedPath(), nil
 	}
 	return "", nil
+}
+
+// biosAttributesModifier is UseStateForUnknown, except when settings is used without
+// attributes: the state may then still hold every attribute from an earlier run,
+// which a changed setting would contradict, so the value is recomputed.
+type biosAttributesModifier struct{}
+
+// Description implements planmodifier.Map.
+func (biosAttributesModifier) Description(context.Context) string {
+	return "Keeps the prior state unless settings is used without attributes."
+}
+
+// MarkdownDescription implements planmodifier.Map.
+func (m biosAttributesModifier) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+// PlanModifyMap implements planmodifier.Map.
+func (biosAttributesModifier) PlanModifyMap(ctx context.Context, req planmodifier.MapRequest, resp *planmodifier.MapResponse) {
+	var settings types.Map
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, tfpath.Root("settings"), &settings)...)
+	if req.ConfigValue.IsNull() && !settings.IsNull() {
+		return
+	}
+	mapplanmodifier.UseStateForUnknown().PlanModifyMap(ctx, req, resp)
+}
+
+// biosRegistryAttr is one entry of the BIOS attribute registry.
+type biosRegistryAttr struct {
+	AttributeName string
+	DisplayName   string
+	MenuPath      string
+	Type          string
+	Value         []struct {
+		ValueDisplayName string
+		ValueName        string
+	}
+}
+
+type biosRegistry []biosRegistryAttr
+
+// loadBiosRegistry follows Bios.AttributeRegistry -> /redfish/v1/Registries/<id> ->
+// Location[].Uri (en-US, else the first) to the registry itself.
+func loadBiosRegistry(bios *redfish.Bios) (biosRegistry, error) {
+	if bios.AttributeRegistry == "" {
+		return nil, fmt.Errorf("the BIOS advertises no attribute registry; use attributes instead of settings")
+	}
+	var file struct {
+		Location []struct {
+			Language string
+			URI      string `json:"Uri"`
+		}
+	}
+	if err := getJSON(bios.GetClient(), "/redfish/v1/Registries/"+bios.AttributeRegistry, &file); err != nil {
+		return nil, fmt.Errorf("BIOS attribute registry %s: %w", bios.AttributeRegistry, err)
+	}
+	if len(file.Location) == 0 {
+		return nil, fmt.Errorf("BIOS attribute registry %s has no Location", bios.AttributeRegistry)
+	}
+	uri := file.Location[0].URI
+	for _, l := range file.Location {
+		if l.Language == "en-US" {
+			uri = l.URI
+		}
+	}
+	var reg struct {
+		RegistryEntries struct {
+			Attributes biosRegistry
+		}
+	}
+	if err := getJSON(bios.GetClient(), uri, &reg); err != nil {
+		return nil, fmt.Errorf("BIOS attribute registry %s: %w", uri, err)
+	}
+	return reg.RegistryEntries.Attributes, nil
+}
+
+// find resolves a settings key: the trimmed display name, or "<menu path>/<display name>"
+// when several attributes share the display name.
+func (reg biosRegistry) find(key string) (*biosRegistryAttr, error) {
+	key = strings.TrimSpace(key)
+	var byName, byPath []*biosRegistryAttr
+	for i := range reg {
+		a := &reg[i]
+		name := strings.TrimSpace(a.DisplayName)
+		if name == key {
+			byName = append(byName, a)
+		}
+		if strings.TrimPrefix(a.MenuPath, "./")+"/"+name == key {
+			byPath = append(byPath, a)
+		}
+	}
+	matches := byName
+	if len(matches) == 0 {
+		matches = byPath
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("BIOS setting %q: no attribute has this display name in the BIOS attribute registry", key)
+	}
+	candidates := make([]string, 0, len(matches))
+	for _, a := range matches {
+		path := strings.TrimPrefix(a.MenuPath, "./") + "/" + strings.TrimSpace(a.DisplayName)
+		candidates = append(candidates, a.AttributeName+" ("+path+")")
+	}
+	return nil, fmt.Errorf("BIOS setting %q matches several attributes: %s; use \"<menu path>/<display name>\", "+
+		"or set the attribute by name in attributes", key, strings.Join(candidates, ", "))
+}
+
+// raw maps a display value to the value the BIOS stores.
+func (a *biosRegistryAttr) raw(key, value string) (string, error) {
+	switch a.Type {
+	case "Password":
+		return "", fmt.Errorf("BIOS setting %q is a password; settings does not handle passwords", key)
+	case "Enumeration":
+		allowed := make([]string, 0, len(a.Value))
+		for _, v := range a.Value {
+			display := strings.TrimSpace(v.ValueDisplayName)
+			if display == strings.TrimSpace(value) {
+				return v.ValueName, nil
+			}
+			allowed = append(allowed, display)
+		}
+		return "", fmt.Errorf("BIOS setting %q: %q is not one of %q", key, value, allowed)
+	}
+	return value, nil
+}
+
+// display maps a stored value to its trimmed display value, or returns it unchanged.
+func (a *biosRegistryAttr) display(raw string) string {
+	for _, v := range a.Value {
+		if v.ValueName == raw {
+			return strings.TrimSpace(v.ValueDisplayName)
+		}
+	}
+	return raw
+}
+
+// biosSettingsToRaw maps settings to raw attribute values, loading the registry only
+// when settings is used.
+func biosSettingsToRaw(ctx context.Context, bios *redfish.Bios, d *models.Bios) (biosRegistry, map[string]string, error) {
+	if d.Settings.IsNull() {
+		return nil, nil, nil
+	}
+	reg, err := loadBiosRegistry(bios)
+	if err != nil {
+		return nil, nil, err
+	}
+	var settings, attributes map[string]string
+	if diags := d.Settings.ElementsAs(ctx, &settings, false); diags.HasError() {
+		return nil, nil, fmt.Errorf("settings: %v", diags)
+	}
+	d.Attributes.ElementsAs(ctx, &attributes, true) // unknown or null: none
+	raw := map[string]string{}
+	for _, key := range slices.Sorted(maps.Keys(settings)) {
+		a, err := reg.find(key)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, ok := attributes[a.AttributeName]; ok {
+			return nil, nil, fmt.Errorf("BIOS setting %q is attribute %s, which attributes also sets", key, a.AttributeName)
+		}
+		if _, ok := raw[a.AttributeName]; ok {
+			return nil, nil, fmt.Errorf("BIOS setting %q is attribute %s, which another settings key also sets", key, a.AttributeName)
+		}
+		if raw[a.AttributeName], err = a.raw(key, settings[key]); err != nil {
+			return nil, nil, err
+		}
+	}
+	return reg, raw, nil
+}
+
+// readBiosSettings sets each settings key to the display value of the pending raw
+// value (the raw value when there is none, so drift shows), keeping the configured
+// spelling when it means the same value. It reports whether any of them waits for a reboot.
+func readBiosSettings(reg biosRegistry, d *models.Bios, current, future map[string]string) (bool, error) {
+	out := map[string]attr.Value{}
+	pending := false
+	for key, prev := range d.Settings.Elements() {
+		a, err := reg.find(key)
+		if err != nil {
+			return false, err
+		}
+		raw := future[a.AttributeName]
+		value := a.display(raw)
+		if p, ok := prev.(types.String); ok && managed(p) {
+			if r, err := a.raw(key, p.ValueString()); err == nil && r == raw {
+				value = p.ValueString()
+			}
+		}
+		out[key] = types.StringValue(value)
+		pending = pending || current[a.AttributeName] != raw
+	}
+	d.Settings = types.MapValueMust(types.StringType, out)
+	return pending, nil
+}
+
+// biosSettingsStored fails when the BMC did not keep a setting that was just written.
+func biosSettingsStored(want map[string]attr.Value, got types.Map) error {
+	has := got.Elements()
+	for key, v := range want {
+		if got, ok := has[key]; !ok || !got.Equal(v) {
+			return fmt.Errorf("BMC did not store BIOS setting %q (wanted %s, has %s)", key, v, has[key])
+		}
+	}
+	return nil
+}
+
+// biosValueString renders a BIOS attribute value as state stores it. gofish decodes
+// numbers as float64; %v would turn 4294967295 into 4.294967295e+09.
+func biosValueString(v interface{}) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return strconv.FormatFloat(t, 'f', -1, 64)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }

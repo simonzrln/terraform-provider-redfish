@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0 (2026-10-10)
+
+- New `redfish_ami_sel_policy`: SEL storage policy (linear or circular).
+- New `redfish_ami_syslog`: remote syslog forwarding of the BMC.
+- New `redfish_power_restore_policy`: Redfish `PowerRestorePolicy`, read back until the
+  BMC applied it (the BMC answers with an asynchronous task).
+- New data source `redfish_ami_firmware`: BMC, BIOS, PSP and microcode versions.
+- `redfish_bios`: new `settings` map that takes setup-menu labels and values, mapped
+  through the BIOS attribute registry. `attributes` is unchanged.
+- `redfish_bios`: numeric BIOS values are no longer rendered in exponent notation
+  (`4294967295` instead of `4.294967295e+09`).
+
 ## 2.0.1 (2026-10-10)
 
 Hygiene release, no functional changes.
