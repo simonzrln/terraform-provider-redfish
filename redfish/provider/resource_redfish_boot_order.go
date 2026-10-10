@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"strings"
 	"terraform-provider-redfish/common"
-	"terraform-provider-redfish/gofish/dell"
 	"terraform-provider-redfish/redfish/models"
 	"time"
 
@@ -562,21 +561,7 @@ func (*BootOrderResource) setBootOrder(service *gofish.Service, d *models.BootOr
 			)
 		}
 	}
-	isGenerationSeventeenAndAbove, err := isServerGenerationSeventeenAndAbove(service)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving the server generation %w", err)
-	}
-	// for 17G use system settings api for PATCH call
-	if isGenerationSeventeenAndAbove {
-		res, err := dell.ComputerSystems(system)
-		uri = res.Settings.OdataID
-		if err != nil {
-			return nil, fmt.Errorf("error retrieving the systems settings URI %w", err)
-		}
-	} else {
-		// Below 17G will have System API for PATCH call
-		uri = system.ODataID
-	}
+	uri = system.ODataID
 
 	resp, err = service.GetClient().Patch(uri, payload)
 	if err != nil {

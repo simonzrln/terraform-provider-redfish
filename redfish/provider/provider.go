@@ -179,26 +179,10 @@ func (p *redfishProvider) Configure(ctx context.Context, req provider.ConfigureR
 func (*redfishProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewPowerResource,
-		NewVirtualMediaResource,
-		NewUserAccountResource,
-		NewSimpleUpdateResource,
-		NewDellIdracAttributesResource,
-		NewRedfishStorageVolumeResource,
 		NewBiosResource,
 		NewManagerResetResource,
 		NewBootOrderResource,
 		NewBootSourceOverrideResource,
-		NewCertificateResource,
-		NewDellLCAttributesResource,
-		NewDellSystemAttributesResource,
-		NewIdracFirmwareUpdateResource,
-		NewUserAccountPasswordResource,
-		NewScpImportResource,
-		NewScpExportResource,
-		NewRedfishNICResource,
-		NewRedfishStorageControllerResource,
-		NewRedfishDirectoryServiceAuthProviderResource,
-		NewRedfishDirectoryServiceAuthProviderCertificateResource,
 	}
 }
 
@@ -206,15 +190,7 @@ func (*redfishProvider) Resources(_ context.Context) []func() resource.Resource 
 func (*redfishProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewBiosDatasource,
-		NewDellIdracAttributesDatasource,
-		NewStorageDatasource,
-		NewDellVirtualMediaDatasource,
 		NewSystemBootDatasource,
-		NewFirmwareInventoryDatasource,
-		NewNICDatasource,
-		NewStorageControllerDatasource,
-		NewDirectoryServiceAuthProviderDatasource,
-		NewDirectoryServiceAuthProviderCertificateDatasource,
 	}
 }
 

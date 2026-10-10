@@ -21,7 +21,6 @@ import (
 	"context"
 	"net/http"
 	"terraform-provider-redfish/common"
-	"terraform-provider-redfish/gofish/dell"
 	"terraform-provider-redfish/redfish/models"
 	"time"
 
@@ -307,42 +306,8 @@ func (r *BootSourceOverrideResource) bootOperation(ctx context.Context, service 
 	}
 
 	plan.SystemID = types.StringValue(system.ID)
-	isGenerationSeventeenAndAbove, err := isServerGenerationSeventeenAndAbove(service)
-	if err != nil {
-		diags.AddError("Error retrieving the server generation", err.Error())
-		return diags
-	}
-	// for 17G use system settings api for PATCH call
-	if isGenerationSeventeenAndAbove {
-		if !plan.BootSourceOverrideMode.IsUnknown() && !plan.BootSourceOverrideMode.IsNull() {
-			diags.AddError("BootSourceOverrideMode is not supported by 17G server", "Unable to support BootSourceOverrideMode for 17G")
-			return diags
-		}
-
-		res, err := dell.ComputerSystems(system)
-		uri = res.Settings.OdataID
-		if err != nil {
-			diags.AddError("Error retrieving the systems settings URI", err.Error())
-			return diags
-		}
-
-		type Boot struct {
-			BootSourceOverrideEnabled redfish.BootSourceOverrideEnabled
-			BootSourceOverrideTarget  redfish.BootSourceOverrideTarget
-		}
-		type Payload struct {
-			Boot Boot `json:"Boot"`
-		}
-		var payload Payload
-		payload.Boot.BootSourceOverrideEnabled = redfish.BootSourceOverrideEnabled(plan.BootSourceOverrideEnabled.ValueString())
-		payload.Boot.BootSourceOverrideTarget = redfish.BootSourceOverrideTarget(plan.BootSourceOverrideTarget.ValueString())
-		_, err = service.GetClient().Patch(uri, payload)
-		if err != nil {
-			diags.AddError("Cannot update boot override details ", err.Error())
-			return diags
-		}
-	} else {
-		// Below 17G will have System API for PATCH call
+	{
+		// Standard Redfish: PATCH the system resource
 		uri = system.ODataID
 		type Boot struct {
 			BootSourceOverrideMode    redfish.BootSourceOverrideMode

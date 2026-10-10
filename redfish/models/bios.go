@@ -41,6 +41,7 @@ type Bios struct {
 	ResetTimeout      types.Int64     `tfsdk:"reset_timeout"`
 	JobTimeout        types.Int64     `tfsdk:"bios_job_timeout"`
 	SystemID          types.String    `tfsdk:"system_id"`
+	PendingReboot     types.Bool      `tfsdk:"pending_reboot"`
 }
 
 // BiosBootOptions is strut for configuring boot options

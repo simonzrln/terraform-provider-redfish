@@ -21,13 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"terraform-provider-redfish/common"
 	"terraform-provider-redfish/redfish/models"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -126,9 +123,8 @@ func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"reset_type": schema.StringAttribute{
 				Optional: true,
 				Description: "Reset type to apply on the computer system after the BIOS settings are applied. " +
-					"Applicable values are 'ForceRestart', " +
-					"'GracefulRestart', and 'PowerCycle'." +
-					"Default = \"GracefulRestart\". ",
+					"Applicable values are 'ForceRestart', 'GracefulRestart', and 'PowerCycle'. " +
+					"When unset, the provider never reboots: changes stay pending until the next reboot (see pending_reboot).",
 				Validators: []validator.String{
 					stringvalidator.OneOf([]string{
 						string(redfish.ForceRestartResetType),
@@ -136,8 +132,11 @@ func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 						string(redfish.PowerCycleResetType),
 					}...),
 				},
+			},
+			"pending_reboot": schema.BoolAttribute{
+				Description: "True when the BIOS settings object holds values for the managed attributes that differ " +
+					"from the running BIOS, i.e. they take effect at the next reboot.",
 				Computed: true,
-				Default:  stringdefault.StaticString(string(redfish.GracefulRestartResetType)),
 			},
 			"reset_timeout": schema.Int64Attribute{
 				Optional:    true,
@@ -335,20 +334,15 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 		return nil, diags
 	}
 
-	attributes := make(map[string]string)
-	err = copyBiosAttributes(bios, attributes)
+	settings, err := getBiosSettings(bios)
 	if err != nil {
-		diags.AddError("error fetching bios resource", err.Error())
+		diags.AddError("error fetching bios settings object", err.Error())
 		return nil, diags
 	}
 
-	// check device is 17G or not
-	isGenerationSeventeenAndAbove, err := isServerGenerationSeventeenAndAbove(service)
-	if err != nil {
-		diags.AddError("Error retrieving the server generation", err.Error())
-		return nil, diags
-	}
-	attrsPayload, diagsAttr := getBiosAttrsToPatch(ctx, plan, attributes, isGenerationSeventeenAndAbove)
+	// Diff against the pending settings object, not the running BIOS: a value that is
+	// already pending must not be patched again on every apply.
+	attrsPayload, diagsAttr := getBiosAttrsToPatch(ctx, plan, settings.future)
 	diags.Append(diagsAttr...)
 	if diags.HasError() {
 		return nil, diags
@@ -358,51 +352,47 @@ func (r *BiosResource) updateRedfishDellBiosAttributes(ctx context.Context, serv
 	biosConfigJobTimeout := plan.JobTimeout.ValueInt64()
 	resetType := plan.ResetType.ValueString()
 
-	tflog.Debug(ctx, fmt.Sprintf("resetTimeout is set to %d and Bios Config Job timeout is set to %d", resetTimeout, biosConfigJobTimeout))
-
 	var biosTaskURI string
 	if len(attrsPayload) != 0 {
 		tflog.Info(ctx, "Submitting patch request for bios attributes")
-		biosTaskURI, err = r.patchBiosAttributes(plan, bios, attrsPayload)
+		biosTaskURI, err = r.patchBiosAttributes(plan, bios, settings, attrsPayload)
 		if err != nil {
 			diags.AddError("error updating bios attributes", err.Error())
 			return nil, diags
 		}
-
-		tflog.Info(ctx, "Submitting patch request for bios attributes completed successfully")
-		tflog.Info(ctx, "rebooting the server")
-		// reboot the server
-		pOp := powerOperator{ctx, service, plan.SystemID.ValueString()}
-		_, err := pOp.PowerOperation(resetType, resetTimeout, intervalBiosConfigJobCheckTime)
-		if err != nil {
-			// TODO: handle this scenario
-			diags.AddError("there was an issue restarting the server", err.Error())
-			return nil, diags
-		}
-
-		tflog.Info(ctx, "rebooting the server completed successfully")
-		tflog.Info(ctx, "Waiting for the bios config job to finish")
-
-		// wait for the bios config job to finish
-		err = common.WaitForTaskToFinish(service, biosTaskURI, intervalBiosConfigJobCheckTime, biosConfigJobTimeout)
-		if err != nil {
-			diags.AddError("error waiting for Bios config monitor task to be completed", err.Error())
-			return nil, diags
-		}
-		tflog.Info(ctx, "Bios config job has completed successfully")
-		time.Sleep(180 * time.Second)
 	} else {
 		tflog.Info(ctx, "BIOS attributes are already set")
 	}
 
 	state.ID = types.StringValue(bios.ODataID)
-
 	err = r.readRedfishDellBiosAttributes(service, state)
 	if err != nil {
 		diags.AddError("unable to fetch currrent bios values", err.Error())
 		return nil, diags
 	}
 
+	if resetType == "" || !state.PendingReboot.ValueBool() {
+		return state, nil
+	}
+
+	tflog.Info(ctx, "rebooting the server to apply pending BIOS settings")
+	pOp := powerOperator{ctx, service, plan.SystemID.ValueString()}
+	if _, err := pOp.PowerOperation(resetType, resetTimeout, intervalBiosConfigJobCheckTime); err != nil {
+		diags.AddError("there was an issue restarting the server", err.Error())
+		return nil, diags
+	}
+	if biosTaskURI != "" {
+		err = common.WaitForTaskToFinish(service, biosTaskURI, intervalBiosConfigJobCheckTime, biosConfigJobTimeout)
+		if err != nil {
+			diags.AddError("error waiting for Bios config monitor task to be completed", err.Error())
+			return nil, diags
+		}
+	}
+	err = r.readRedfishDellBiosAttributes(service, state)
+	if err != nil {
+		diags.AddError("unable to fetch currrent bios values", err.Error())
+		return nil, diags
+	}
 	tflog.Debug(ctx, state.ID.ValueString()+": Update finished successfully")
 	return state, nil
 }
@@ -420,30 +410,98 @@ func (*BiosResource) readRedfishDellBiosAttributes(service *gofish.Service, d *m
 		return fmt.Errorf("error fetching BIOS resource: %w", err)
 	}
 
-	attributes := make(map[string]string)
-	err = copyBiosAttributes(bios, attributes)
-	if err != nil {
+	current := make(map[string]string)
+	if err = copyBiosAttributes(bios, current); err != nil {
 		return fmt.Errorf("error fetching BIOS attributes: %w", err)
 	}
+	settings, err := getBiosSettings(bios)
+	if err != nil {
+		return fmt.Errorf("error fetching BIOS settings object: %w", err)
+	}
 
+	// State reflects the pending (future) values, so an applied-but-not-rebooted
+	// change does not show up as drift; pending_reboot tells the difference.
+	var old map[string]attr.Value
+	if !d.Attributes.IsNull() && !d.Attributes.IsUnknown() {
+		old = d.Attributes.Elements()
+	}
 	attributesTF := make(map[string]attr.Value)
-	if !d.Attributes.IsNull() {
-		old := d.Attributes.Elements()
-		for key, value := range attributes {
-			if _, ok := old[key]; ok {
-				attributesTF[key] = types.StringValue(value)
+	pending := false
+	for key, value := range settings.future {
+		if old != nil {
+			if _, ok := old[key]; !ok {
+				continue
 			}
 		}
-	} else {
-		// only in case of import
-		for key, value := range attributes {
-			attributesTF[key] = types.StringValue(value)
+		attributesTF[key] = types.StringValue(value)
+		if old != nil && current[key] != value {
+			pending = true
 		}
 	}
 
 	d.Attributes = types.MapValueMust(types.StringType, attributesTF)
+	d.PendingReboot = types.BoolValue(pending)
 	d.ID = types.StringValue(bios.ID)
 	return nil
+}
+
+// biosSettings is the pending settings object a BIOS advertises in @Redfish.Settings
+// (Dell: <bios>/Settings, AMI MegaRAC: <bios>/SD).
+type biosSettings struct {
+	uri        string
+	etag       string
+	applyTimes []string
+	future     map[string]string
+}
+
+func getBiosSettings(bios *redfish.Bios) (*biosSettings, error) {
+	var raw struct {
+		Settings struct {
+			SettingsObject struct {
+				ODataID string `json:"@odata.id"`
+			}
+			SupportedApplyTimes []string
+		} `json:"@Redfish.Settings"`
+	}
+	if err := getJSON(bios.GetClient(), bios.ODataID, &raw); err != nil {
+		return nil, err
+	}
+	s := &biosSettings{uri: raw.Settings.SettingsObject.ODataID, applyTimes: raw.Settings.SupportedApplyTimes}
+	if s.uri == "" {
+		// No settings object advertised: the BIOS resource itself takes the PATCH.
+		s.uri = bios.ODataID
+	}
+	var obj struct {
+		ETag       string                 `json:"@odata.etag"`
+		Attributes map[string]interface{} `json:"Attributes"`
+	}
+	if err := getJSON(bios.GetClient(), s.uri, &obj); err != nil {
+		return nil, err
+	}
+	s.etag = obj.ETag
+	current := make(map[string]string)
+	if err := copyBiosAttributes(bios, current); err != nil {
+		return nil, err
+	}
+	// A settings object may list only the attributes that change; fill in the rest.
+	s.future = current
+	for k, v := range obj.Attributes {
+		if str, ok := v.(string); ok {
+			s.future[k] = str
+		} else {
+			s.future[k] = fmt.Sprintf("%v", v)
+		}
+	}
+	return s, nil
+}
+
+func getJSON(c redfishcommon.Client, uri string, out interface{}) error {
+	resp, err := c.Get(uri)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func copyBiosAttributes(bios *redfish.Bios, attributes map[string]string) error {
@@ -463,17 +521,13 @@ func copyBiosAttributes(bios *redfish.Bios, attributes map[string]string) error 
 }
 
 // nolint: revive
-func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes map[string]string, isSeventeenGen bool) (map[string]interface{}, diag.Diagnostics) {
+func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes map[string]string) (map[string]interface{}, diag.Diagnostics) {
 	var diags diag.Diagnostics
 	attrs := make(map[string]string)
 	attrsToPatch := make(map[string]interface{})
 	diags.Append(d.Attributes.ElementsAs(ctx, &attrs, true)...)
 
 	for key, newVal := range attrs {
-		if isSeventeenGen && strings.Contains(key, "AcPwrRcvry") {
-			diags.AddError(fmt.Sprintf("%s Configuration is not supported by 17G device", key), fmt.Sprintf("BIOS attribute %s not found", key))
-			continue
-		}
 		oldVal, ok := attributes[key]
 		if !ok {
 			diags.AddError("There was an issue while creating/updating bios attriutes", fmt.Sprintf("BIOS attribute %s not found", key))
@@ -502,49 +556,38 @@ func getBiosAttrsToPatch(ctx context.Context, d *models.Bios, attributes map[str
 	return attrsToPatch, diags
 }
 
-func (r *BiosResource) patchBiosAttributes(d *models.Bios, bios *redfish.Bios, attributes map[string]interface{}) (biosTaskURI string, err error) {
+func (r *BiosResource) patchBiosAttributes(d *models.Bios, bios *redfish.Bios, settings *biosSettings, attributes map[string]interface{}) (biosTaskURI string, err error) {
 	payload := make(map[string]interface{})
 	payload["Attributes"] = attributes
 
-	settingsApplyTime := d.SettingsApplyTime.ValueString()
-
-	allowedValues := bios.AllowedAttributeUpdateApplyTimes()
-	allowed := false
-	for i := range allowedValues {
-		if strings.TrimSpace(settingsApplyTime) == (string)(allowedValues[i]) {
-			allowed = true
-			break
+	// Only send an apply time when the BMC advertises any (AMI MegaRAC does not).
+	settingsApplyTime := strings.TrimSpace(d.SettingsApplyTime.ValueString())
+	if len(settings.applyTimes) > 0 {
+		allowed := false
+		for _, t := range settings.applyTimes {
+			allowed = allowed || t == settingsApplyTime
 		}
+		if !allowed {
+			return "", fmt.Errorf("\"%s\" is not allowed as settings apply time, BMC supports %v", settingsApplyTime, settings.applyTimes)
+		}
+		payload["@Redfish.SettingsApplyTime"] = map[string]interface{}{"ApplyTime": settingsApplyTime}
 	}
 
-	if !allowed {
-		err := fmt.Errorf("\"%s\" is not allowed as settings apply time", settingsApplyTime)
-		return "", err
+	var headers map[string]string
+	if settings.etag != "" {
+		headers = map[string]string{"If-Match": settings.etag}
 	}
-
-	payload["@Redfish.SettingsApplyTime"] = map[string]interface{}{
-		"ApplyTime": settingsApplyTime,
-	}
-
-	oDataURI, err := url.Parse(bios.ODataID)
-	if err != nil {
-		tflog.Trace(r.ctx, "error fetching data: "+err.Error())
-		return "", err
-	}
-	oDataURI.Path = path.Join(oDataURI.Path, "Settings")
-	settingsObjectURI := oDataURI.String()
-
-	resp, err := bios.GetClient().Patch(settingsObjectURI, payload)
+	resp, err := bios.GetClient().PatchWithHeaders(settings.uri, payload, headers)
 	if err != nil {
 		tflog.Trace(r.ctx, "[DEBUG] error sending the patch request:"+err.Error())
 		return "", err
 	}
+	defer resp.Body.Close()
 
 	// check if location is present in the response header
 	if location, err := resp.Location(); err == nil {
 		tflog.Trace(r.ctx, "[DEBUG] BIOS configuration job uri: "+location.String())
-		taskURI := location.EscapedPath()
-		return taskURI, nil
+		return location.EscapedPath(), nil
 	}
 	return "", nil
 }
