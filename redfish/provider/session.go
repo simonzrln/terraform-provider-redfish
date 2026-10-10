@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"terraform-provider-redfish/redfish/ami"
 	"terraform-provider-redfish/redfish/models"
@@ -71,7 +72,8 @@ func patchWithETag(c redfishcommon.Client, uri string, payload interface{}) erro
 	}
 	resp, err := c.PatchWithHeaders(uri, payload, headers)
 	if err != nil {
-		return err
+		b, _ := json.Marshal(payload)
+		return fmt.Errorf("PATCH %s %s: %w", uri, b, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= http.StatusMultipleChoices {
@@ -81,9 +83,10 @@ func patchWithETag(c redfishcommon.Client, uri string, payload interface{}) erro
 	// Redfish reports partial failures as 200 with @Message.ExtendedInfo; surface them.
 	var body map[string]json.RawMessage
 	if b, _ := io.ReadAll(resp.Body); json.Unmarshal(b, &body) == nil {
-		if info, ok := body["@Message.ExtendedInfo"]; ok && len(info) > 2 {
-			if msg := string(info); containsError(msg) {
-				return fmt.Errorf("PATCH %s: %s", uri, msg)
+		// Top level and per property ("SNMP@Message.ExtendedInfo").
+		for k, info := range body {
+			if strings.HasSuffix(k, "@Message.ExtendedInfo") && containsError(string(info)) {
+				return fmt.Errorf("PATCH %s: %s", uri, info)
 			}
 		}
 	}

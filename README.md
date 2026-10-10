@@ -51,7 +51,7 @@ terraform {
 
 provider "redfish" {
   redfish_servers = {
-    bmc = { user = "admin", password = var.bmc_password, endpoint = "https://192.168.1.99", ssl_insecure = true }
+    bmc = { user = "admin", password = var.bmc_password, endpoint = "https://192.0.2.10", ssl_insecure = true }
   }
 }
 

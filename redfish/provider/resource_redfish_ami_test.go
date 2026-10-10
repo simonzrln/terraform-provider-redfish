@@ -70,7 +70,7 @@ func newFakeBMC() *fakeBMC {
 				"higher_non_critical_threshold": "NA", "higher_critical_threshold": "NA", "higher_non_recoverable_threshold": "NA"},
 		},
 		"/api/settings/services": {
-			{"id": 7.0, "service_id": 256.0, "service_name": "vnc", "state": 1.0, "non_secure_port": -1.0, "secure_port": 5901.0, "time_out": 600.0},
+			{"id": 7.0, "service_id": 256.0, "service_name": "vnc", "state": 1.0, "non_secure_port": -1.0, "secure_port": 5901.0, "time_out": 600.0, "maximum_sessions": 130.0, "active_session": 128.0},
 		},
 	}
 	return f
@@ -239,14 +239,14 @@ func TestSensorThresholdDetectsRounding(t *testing.T) {
 	}
 }
 
-func TestServiceDisableSendsStringPorts(t *testing.T) {
+func TestServiceDisableSendsFormFieldsAsStrings(t *testing.T) {
 	p, servers, f := fakeProvider(t)
 	m := &models.AMIService{RedfishServer: servers, Name: types.StringValue("vnc"), Enabled: types.BoolValue(false)}
 	if err := syncService(context.Background(), p, m, true); err != nil {
 		t.Fatal(err)
 	}
 	b := f.bodies["/api/settings/services/7"]
-	if b.Int("state") != 0 || b["secure_port"] != "5901" || m.Enabled.ValueBool() {
+	if b.Int("state") != 0 || b["secure_port"] != "5901" || b["active_session"] != "128" || b["maximum_sessions"] != 130.0 || m.Enabled.ValueBool() {
 		t.Fatalf("PUT body = %v, state = %v", b, m.Enabled)
 	}
 }

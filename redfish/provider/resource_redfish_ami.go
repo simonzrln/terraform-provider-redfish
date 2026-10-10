@@ -562,10 +562,11 @@ func syncService(_ context.Context, p *redfishProvider, m *models.AMIService, wr
 			state = 1
 		}
 		if write && row.Int("state") != state {
+			// The firmware wants these four as strings, exactly like the web UI sends its
+			// form fields; any other mix fails with "Invalid Variable Type Received".
 			body := maps.Clone(row)
 			body["state"] = state
-			// The UI sends ports and timeout as strings.
-			for _, k := range []string{"non_secure_port", "secure_port", "time_out"} {
+			for _, k := range []string{"non_secure_port", "secure_port", "time_out", "active_session"} {
 				body[k] = strconv.Itoa(row.Int(k))
 			}
 			if err := c.Put(fmt.Sprintf("/api/settings/services/%d", row.Int("id")), body, nil); err != nil {
