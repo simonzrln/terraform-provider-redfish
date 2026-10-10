@@ -45,7 +45,7 @@ Conventions that differ from upstream:
 ```hcl
 terraform {
   required_providers {
-    redfish = { source = "simonzrln/redfish" }
+    redfish = { source = "simonzrln/redfish", version = "~> 2.0" }
   }
 }
 
@@ -107,10 +107,29 @@ BIOS attribute names and values are the raw Redfish names (`CbsCpuSvmEnableRPL`)
 not the setup-menu labels. Map them with the attribute registry linked from
 `/redfish/v1/Registries`.
 
+## Compatibility
+
+Tested only on an ASRock Rack **B650D4U**: BMC firmware 6.09 (AST2600), BIOS 22.10.
+AMI MegaRAC firmware differs between boards and vendors. Likely to differ elsewhere:
+
+* field types in the AMI web API (6.09 wants service ports and timeouts as strings),
+* SNMP writability (read-only on 6.09),
+* the BIOS settings object path advertised in `@Redfish.Settings` (`/Bios/SD` on 6.09),
+* fan header numbering and threshold steps.
+
+If something does not work on your board, open an issue with the
+[bug report template](https://github.com/simonzrln/terraform-provider-redfish/issues/new?template=bug_report.md).
+
+## Installation
+
+The provider is published on the Terraform Registry as `simonzrln/redfish`; see the
+`required_providers` block in the example above. Docs per resource:
+https://registry.terraform.io/providers/simonzrln/redfish/latest/docs
+
 ## Building
 
-There is no registry release. Build the binary and point Terraform at it with a
-filesystem mirror or `dev_overrides`:
+For development, build the binary and point Terraform at it with `dev_overrides`
+(or a filesystem mirror):
 
 ```sh
 go build -o terraform-provider-redfish .        # or scripts/docker-go.sh build ...

@@ -22,10 +22,10 @@ the binary into a local filesystem mirror (see "Homelab cleanup" at the end).
 
 ## 1. Fix before the first release
 
-- [ ] `terraform-registry-manifest.json`: `protocol_versions` must be `["6.0"]`.
+- [x] `terraform-registry-manifest.json`: `protocol_versions` must be `["6.0"]`.
       `main.go` uses `providerserver.Serve`, which speaks protocol 6; the file still
       says `5.0` from upstream.
-- [ ] `main.go`: drop the commented-out old `main()` block and the `go:generate`
+- [x] `main.go`: drop the commented-out old `main()` block and the `go:generate`
       lines that point at the deleted `examples/` tree, or replace them by the
       docs generation below.
 
@@ -34,19 +34,19 @@ the binary into a local filesystem mirror (see "Homelab cleanup" at the end).
 The registry shows one page per resource from `docs/`. Generate it instead of
 writing it by hand:
 
-- [ ] `examples/provider/provider.tf` plus one `examples/resources/<name>/resource.tf`
+- [x] `examples/provider/provider.tf` plus one `examples/resources/<name>/resource.tf`
       per resource (reuse the README example and the homelab's
       `/opt/homelab/stacks/terraform/bmc/board.tf`, with `192.0.2.10` as endpoint).
-- [ ] `templates/index.md.tmpl` with the AMI focus, the tested hardware and the
+- [x] `templates/index.md.tmpl` with the AMI focus, the tested hardware and the
       conventions from the README (destroy only forgets, read-back check, no reboot
       without `reset_type`).
-- [ ] `go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name redfish`
+- [x] `go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name redfish`
       (pin a current version), commit `docs/`. Re-run whenever a schema
       description changes; add a CI check that `docs/` is up to date.
 
 ## 3. Release pipeline
 
-- [ ] `.goreleaser.yml` from HashiCorp's provider scaffolding
+- [x] `.goreleaser.yml` from HashiCorp's provider scaffolding
       (github.com/hashicorp/terraform-provider-scaffolding-framework): builds
       `CGO_ENABLED=0` for linux/darwin/windows/freebsd × amd64/arm64 (drop
       windows/arm as upstream did), zips named
@@ -54,34 +54,45 @@ writing it by hand:
       `terraform-provider-redfish_{{ .Version }}_SHA256SUMS` plus `.sig`, and
       `terraform-registry-manifest.json` renamed to
       `terraform-provider-redfish_{{ .Version }}_manifest.json` as extra file.
-- [ ] `.github/workflows/release.yml`: on tag `v*`, checkout, setup-go from
+- [x] `.github/workflows/release.yml`: on tag `v*`, checkout, setup-go from
       `go.mod`, import the key with `crazy-max/ghaction-import-gpg`, run
       `goreleaser/goreleaser-action` with `release --clean`, env `GPG_FINGERPRINT`.
       Pin action versions.
-- [ ] GPG key: `gpg --quick-generate-key "Simon (terraform-provider-redfish) <106229814+simonzrln@users.noreply.github.com>" rsa4096 sign never`,
-      export the private key armored, store it plus passphrase in the safe, then
-      `gh secret set GPG_PRIVATE_KEY` and `gh secret set PASSPHRASE` on
-      `simonzrln/terraform-provider-redfish`.
-- [ ] Dry run: `goreleaser release --snapshot --clean` locally (docker
+- [x] GPG key: generated 2026-10-10, fingerprint
+      `5255755CC67B5804B87FD5DA2FF6ACBC957777E5`, rsa4096, no expiry. Generated in
+      the session scratchpad
+      `/tmp/claude-1000/-home-simon-terraform-provider-redfish/700259c5-4cb5-4f6e-840f-d0c64866c77a/scratchpad/`
+      (`gpg-private.asc`, `gpg-pass`, `gpg-public.asc`, keyring `gnupg/`).
+      GitHub secrets `GPG_PRIVATE_KEY` and `PASSPHRASE` are set, private key +
+      passphrase are in the safe (`terraform-registry-gpg`, line 1 = passphrase).
+      Delete the scratchpad copies once the public key is on the registry.
+- [x] Dry run: `goreleaser release --snapshot --clean` locally (docker
       `goreleaser/goreleaser`), check the archive names and the manifest file.
 
 ## 4. Repo polish for other users
 
-- [ ] README: section "Compatibility" (tested hardware above, AMI firmware differs
+- [x] README: section "Compatibility" (tested hardware above, AMI firmware differs
       between boards; things that may differ: string-typed service fields, SNMP
       writability, settings object path).
-- [ ] `.github/ISSUE_TEMPLATE/bug_report.md`: board, BMC firmware, BIOS version,
+- [x] `.github/ISSUE_TEMPLATE/bug_report.md`: board, BMC firmware, BIOS version,
       provider version, failing resource, the request/response (redact passwords).
-- [ ] CHANGELOG entry for 2.0.0.
+- [x] CHANGELOG entry for 2.0.0.
 
-## 5. Publish (Simon, in the browser, about 10 minutes)
+## 5. Publish (Simon, about 15 minutes)
 
-1. registry.terraform.io → sign in with GitHub (simonzrln).
-2. User settings → Signing keys → add the **public** key (ASCII armored).
-3. Publish → Provider → select `simonzrln/terraform-provider-redfish`.
-4. Push tag `v2.0.0`; the release workflow creates the GitHub release, the registry
-   picks it up via webhook within minutes.
-5. Check: `terraform init` in an empty dir with
+The registry only accepts a repo that already has a GitHub release, so the release
+comes first and "Publish" second.
+
+1. Secrets set (section 3, `gh secret list` shows `GPG_PRIVATE_KEY` and `PASSPHRASE`).
+2. `git push origin ami`, wait for the `test` workflow (incl. the docs check) to pass.
+3. `git tag -a v2.0.0 -m "v2.0.0" && git push origin v2.0.0` (only this tag, never
+   `--tags`). The `Release` workflow builds, signs and creates the GitHub release:
+   8 zips, `_SHA256SUMS`, `_SHA256SUMS.sig`, `_manifest.json`, not a draft.
+4. registry.terraform.io → sign in with GitHub (simonzrln) → User settings → Signing
+   keys → add the **public** key (`gpg-public.asc`, ASCII armored).
+5. Publish → Provider → select `simonzrln/terraform-provider-redfish`. The registry
+   ingests v2.0.0 then; later releases arrive via webhook.
+6. Check: `terraform init` in an empty dir with
    `redfish = { source = "simonzrln/redfish", version = "2.0.0" }`.
 
 ## 6. Homelab cleanup (in /opt/homelab, after the registry serves 2.0.0)

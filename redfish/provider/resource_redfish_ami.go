@@ -73,8 +73,9 @@ func NewAMIFanModeResource() resource.Resource {
 					Required:    true,
 					NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
 						"mode": schema.StringAttribute{
-							Required:   true,
-							Validators: []validator.String{stringvalidator.OneOf("default", "customized", "manual")},
+							Description: "default = BMC firmware default, customized = follows its fan curve, manual = fixed duty.",
+							Required:    true,
+							Validators:  []validator.String{stringvalidator.OneOf("default", "customized", "manual")},
 						},
 						"duty": schema.Int64Attribute{
 							Description: "Fixed duty in percent; only for mode = manual. Unset means unmanaged.",
@@ -204,8 +205,8 @@ func NewAMIFanCurveResource() resource.Resource {
 						"Temperatures and duties must both be strictly increasing.",
 					Required: true,
 					NestedObject: schema.NestedAttributeObject{Attributes: map[string]schema.Attribute{
-						"temp": schema.Int64Attribute{Required: true},
-						"duty": schema.Int64Attribute{Required: true},
+						"temp": schema.Int64Attribute{Description: "Temperature in °C from which this step applies.", Required: true},
+						"duty": schema.Int64Attribute{Description: "Fan duty in percent for this step.", Required: true},
 					}},
 				},
 				"hysteresis":         optionalInt("Falling hysteresis in °C."),
@@ -525,11 +526,12 @@ func NewAMIServiceResource() resource.Resource {
 			Attributes: map[string]schema.Attribute{
 				"id": idAttr,
 				"name": schema.StringAttribute{
+					Description:   "Service name: kvm, cd-media, hd-media, ssh, solssh or vnc.",
 					Required:      true,
 					Validators:    []validator.String{stringvalidator.NoneOf("web")},
 					PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 				},
-				"enabled": schema.BoolAttribute{Required: true},
+				"enabled": schema.BoolAttribute{Description: "Whether the service runs.", Required: true},
 			},
 		},
 	}

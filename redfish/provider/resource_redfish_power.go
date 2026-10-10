@@ -99,9 +99,9 @@ func PowerSchema() map[string]schema.Attribute {
 
 		"maximum_wait_time": schema.Int64Attribute{
 			MarkdownDescription: "The maximum amount of time to wait for the server to enter the correct power state before" +
-				"giving up in seconds",
+				" giving up, in seconds.",
 			Description: "The maximum amount of time to wait for the server to enter the correct power state before" +
-				"giving up in seconds",
+				" giving up, in seconds.",
 			Optional: true,
 			Computed: true,
 			Default:  int64default.StaticInt64(waitTime),
@@ -137,9 +137,9 @@ func PowerSchema() map[string]schema.Attribute {
 // Schema defines the schema for the resource.
 func (*powerResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This Terraform resource is used to configure Power attributes of the iDRAC Server." +
+		MarkdownDescription: "This Terraform resource is used to configure Power attributes of the server." +
 			" We can Read the existing power state or modify it using this resource.",
-		Description: "This Terraform resource is used to configure Power attributes of the iDRAC Server." +
+		Description: "This Terraform resource is used to configure Power attributes of the server." +
 			" We can Read the existing power state or modify it using this resource.",
 
 		Attributes: PowerSchema(),

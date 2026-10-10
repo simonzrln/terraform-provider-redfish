@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased (fork of dell/terraform-provider-redfish v1.6.2)
+## 2.0.0 (2026-10-10)
 
+First registry release of the fork of dell/terraform-provider-redfish v1.6.2.
+
+- Published on the Terraform Registry as `simonzrln/redfish`, plugin protocol 6.
+- Tested hardware: ASRock Rack B650D4U (BMC firmware 6.09, BIOS 22.10).
 - Removed all iDRAC-only resources, data sources and the in-tree `gofish/dell`.
 - Removed the iDRAC server-generation check that blocked every write on non-Dell BMCs.
 - `redfish_bios`: writes to the advertised settings object, diffs against pending
@@ -11,4 +15,4 @@
   `redfish_ami_service`.
 - Removed `redfish_user_account` and `redfish_user_account_password` (Dell slot model).
 
-Upstream history: https://github.com/dell/terraform-provider-redfish/blob/main/CHANGELOG.md
+Versions below 2.0.0 are Dell's upstream history: https://github.com/dell/terraform-provider-redfish/blob/main/CHANGELOG.md

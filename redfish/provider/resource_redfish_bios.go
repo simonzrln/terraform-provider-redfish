@@ -84,9 +84,9 @@ func (*BiosResource) Metadata(_ context.Context, req resource.MetadataRequest, r
 // Schema defines the schema for the resource.
 func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This Terraform resource is used to configure Bios attributes of the iDRAC Server." +
+		MarkdownDescription: "This Terraform resource is used to configure Bios attributes of the server." +
 			" We can Read the existing configurations or modify them using this resource.",
-		Description: "This Terraform resource is used to configure Bios attributes of the iDRAC Server." +
+		Description: "This Terraform resource is used to configure Bios attributes of the server." +
 			" We can Read the existing configurations or modify them using this resource.",
 
 		Attributes: map[string]schema.Attribute{
@@ -147,7 +147,7 @@ func (*BiosResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *r
 			"bios_job_timeout": schema.Int64Attribute{
 				Optional: true,
 				Description: "bios_job_timeout is the time in seconds that the provider waits for the bios update job to be" +
-					"completed before timing out.",
+					" completed before timing out.",
 				Default:  int64default.StaticInt64(int64(defaultBiosConfigJobTimeout)),
 				Computed: true,
 			},

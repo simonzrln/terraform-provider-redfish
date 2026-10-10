@@ -69,9 +69,9 @@ type BootOrderResource struct {
 // Schema implements resource.Resource.
 func (*BootOrderResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the iDRAC Server." +
+		MarkdownDescription: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server." +
 			" We can Read the existing configurations or modify them using this resource.",
-		Description: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the iDRAC Server." +
+		Description: "This Terraform resource is used to configure Boot Order and enable/disable Boot Options of the server." +
 			" We can Read the existing configurations or modify them using this resource.",
 		Attributes: BootOrderSchema(),
 		Blocks:     RedfishServerResourceBlockMap(),
@@ -94,8 +94,8 @@ func BootOrderSchema() map[string]schema.Attribute {
 			NestedObject: schema.NestedAttributeObject{
 				Attributes: map[string]schema.Attribute{
 					"boot_option_reference": schema.StringAttribute{
-						Description:         "FQDD of the boot device.",
-						MarkdownDescription: "FQDD of the boot device.",
+						Description:         "Redfish ID of the boot option (BootOptionReference, e.g. Boot0001).",
+						MarkdownDescription: "Redfish ID of the boot option (BootOptionReference, e.g. Boot0001).",
 						Optional:            true,
 						Computed:            true,
 					},
@@ -125,9 +125,9 @@ func BootOrderSchema() map[string]schema.Attribute {
 		},
 		"reset_type": schema.StringAttribute{
 			Required: true,
-			Description: "Reset type allows to choose the type of restart to apply when firmware upgrade is scheduled." +
+			Description: "Restart type used when the BMC answers the change with a job or task that needs a reboot to apply." +
 				" Possible values are: \"ForceRestart\", \"GracefulRestart\" or \"PowerCycle\"",
-			MarkdownDescription: "Reset type allows to choose the type of restart to apply when firmware upgrade is scheduled." +
+			MarkdownDescription: "Restart type used when the BMC answers the change with a job or task that needs a reboot to apply." +
 				" Possible values are: \"ForceRestart\", \"GracefulRestart\" or \"PowerCycle\"",
 			Validators: []validator.String{
 				stringvalidator.OneOf([]string{

@@ -27,16 +27,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 
-// Run "go generate" to format example terraform files and generate the docs for the registry/website
-
-// If you do not have terraform installed, you can remove the formatting command, but its suggested to
-// ensure the documentation is formatted properly.
-//go:generate terraform fmt -recursive ./examples/
-
-// Run the docs generation tool, check its repository for more information on how it works and how docs
-// can be customized.
-//nolint:all
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.19.4 generate --rendered-website-dir docs --provider-name terraform-provider-redfish
+// Run "go generate" to regenerate docs/ from the schemas, examples/ and templates/.
+// Optional, needs terraform in PATH: terraform fmt -recursive ./examples/
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0 generate --provider-name redfish
 
 func main() {
 	var debug bool
@@ -52,30 +45,3 @@ func main() {
 		log.Fatal(err.Error())
 	}
 }
-
-// func main() {
-
-// 	var debugMode bool
-
-// 	// Set this flag to true if you want the provider to run in debug mode. Leaving it as is will cause it to run
-// 	// normally.
-// 	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
-// 	flag.Parse()
-
-// 	opts := &plugin.ServeOpts{
-// 		Debug:        debugMode,
-// 		ProviderAddr: "registry.terraform.io/simonzrln/redfish",
-// 		ProviderFunc: redfish.Provider,
-// 	}
-
-// 	if debugMode {
-// 		err := plugin.Debug(context.Background(), "registry.terraform.io/simonzrln/redfish", opts)
-// 		if err != nil {
-// 			log.Fatal(err.Error())
-// 		}
-// 		return
-// 	}
-
-// 	plugin.Serve(opts)
-
-// }

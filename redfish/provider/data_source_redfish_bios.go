@@ -211,8 +211,8 @@ func BootOptionsSchema() map[string]schema.Attribute {
 			Computed:            true,
 		},
 		"boot_option_reference": schema.StringAttribute{
-			MarkdownDescription: "FQDD of the boot device.",
-			Description:         "FQDD of the boot device.",
+			MarkdownDescription: "Redfish ID of the boot option (BootOptionReference, e.g. Boot0001).",
+			Description:         "Redfish ID of the boot option (BootOptionReference, e.g. Boot0001).",
 			Computed:            true,
 		},
 		"display_name": schema.StringAttribute{

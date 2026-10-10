@@ -1,5 +1,5 @@
 PKG_NAME=redfish
-VERSION?=1.6.2
+VERSION?=2.0.0
 TEST?=$$(go list ./... | grep -v 'vendor')
 INSTALL_ROOT?=~/.terraform.d/plugins
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
@@ -48,8 +48,10 @@ vet:
 gosec:
 	gosec -exclude-generated ./...
 
-release:
-	goreleaser release --rm-dist --snapshot --skip-publish  --skip-sign
+# unsigned local build of all release archives into dist/; keep the image tag in sync with .github/workflows/release.yml
+snapshot:
+	docker run --rm -u "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR):/src" -w /src \
+		goreleaser/goreleaser:v2.18.2 release --snapshot --clean --skip=sign
 
 install: build
 	mkdir -p $(INSTALL_ROOT)/${HOSTNAME}/${NAMESPACE}/${PKG_NAME}/${VERSION}/${OS_ARCH}
@@ -90,4 +92,4 @@ clean:
 	go clean --cache
 	rm -rf vendor bin
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck lint tools test-compile website website-lint website-test
+.PHONY: build snapshot test testacc vet fmt fmtcheck errcheck lint tools test-compile website website-lint website-test

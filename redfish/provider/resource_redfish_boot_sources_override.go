@@ -65,8 +65,8 @@ type BootSourceOverrideResource struct {
 // Schema implements resource.Resource.
 func (*BootSourceOverrideResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "This Terraform resource is used to configure Boot sources of the iDRAC Server.",
-		Description:         "This Terraform resource is used to configure Boot sources of the iDRAC Server.",
+		MarkdownDescription: "This Terraform resource is used to configure Boot sources of the server.",
+		Description:         "This Terraform resource is used to configure Boot sources of the server.",
 		Attributes:          BootSourceOverrideSchema(),
 		Blocks: map[string]schema.Block{
 			"redfish_server": schema.ListNestedBlock{
@@ -164,9 +164,9 @@ func BootSourceOverrideSchema() map[string]schema.Attribute {
 		},
 		"reset_type": schema.StringAttribute{
 			Required: true,
-			Description: "Reset type allows to choose the type of restart to apply when firmware upgrade is scheduled." +
+			Description: "Restart type used when the BMC answers the change with a job or task that needs a reboot to apply." +
 				" Possible values are: \"ForceRestart\", \"GracefulRestart\" or \"PowerCycle\"",
-			MarkdownDescription: "Reset type allows to choose the type of restart to apply when firmware upgrade is scheduled." +
+			MarkdownDescription: "Restart type used when the BMC answers the change with a job or task that needs a reboot to apply." +
 				" Possible values are: \"ForceRestart\", \"GracefulRestart\" or \"PowerCycle\"",
 
 			Validators: []validator.String{
